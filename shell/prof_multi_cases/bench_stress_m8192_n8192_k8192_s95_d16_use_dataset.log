@@ -1,0 +1,10 @@
+{
+  "case": "bench_stress_m8192_n8192_k8192_s95_d16",
+  "mode": "full",
+  "M": 8192,
+  "N": 8192,
+  "K": 8192,
+  "sparsity": 95,
+  "d": 16,
+  "target": "/root/LHX/Magicore/ascblas/data"
+}

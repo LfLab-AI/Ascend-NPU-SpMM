@@ -1,0 +1,21 @@
+Device_id,Stream Id,Task Id,Hit Rate,Victim Rate,Op Name
+0,47,1,N/A,0.06628,spmm_kernel_aic4_ktile512
+0,47,2,N/A,0.066458,spmm_kernel_aic4_ktile512
+0,47,3,N/A,0.066373,spmm_kernel_aic4_ktile512
+0,47,4,N/A,0.066461,spmm_kernel_aic4_ktile512
+0,47,5,N/A,0.066326,spmm_kernel_aic4_ktile512
+0,47,6,N/A,0.066486,spmm_kernel_aic4_ktile512
+0,47,7,N/A,0.066343,spmm_kernel_aic4_ktile512
+0,47,8,N/A,0.066439,spmm_kernel_aic4_ktile512
+0,47,9,N/A,0.066379,spmm_kernel_aic4_ktile512
+0,47,10,N/A,0.066449,spmm_kernel_aic4_ktile512
+0,47,11,N/A,0.066324,spmm_kernel_aic4_ktile512
+0,47,12,N/A,0.066482,spmm_kernel_aic4_ktile512
+0,47,13,N/A,0.066348,spmm_kernel_aic4_ktile512
+0,47,14,N/A,0.066441,spmm_kernel_aic4_ktile512
+0,47,15,N/A,0.066366,spmm_kernel_aic4_ktile512
+0,47,16,N/A,0.066452,spmm_kernel_aic4_ktile512
+0,47,17,N/A,0.066345,spmm_kernel_aic4_ktile512
+0,47,18,N/A,0.066472,spmm_kernel_aic4_ktile512
+0,47,19,N/A,0.066345,spmm_kernel_aic4_ktile512
+0,47,20,N/A,0.066446,spmm_kernel_aic4_ktile512

@@ -1,0 +1,221 @@
+{
+  "notes": [
+    "Diagnostic case set for locating the current SpMM performance cliff.",
+    "Main suspected bottleneck: N dimension tail path. Current kernel uses B_PACK_N_BATCH=64 and BLOCK_SIZE=16, so one AIV B-pack super-batch covers 1024 output columns. N multiple of 1024 is the most regular shape; N multiple of 128 avoids AIC compute-batch tail; N multiple of 16 only avoids the innermost 16-column block tail.",
+    "All cases keep d=16 and M divisible by d to match vector-CSR row blocks.",
+    "Recommended order: first run diag_base_* and diag_axis_* cases; then run diag_n_* cases; finally run diag_m_*/diag_k_* and diag_s_* cases if needed.",
+    "Large cases generate dense A/B/C reference files; use generate_full_datasets.py --only <case...> instead of generating all cases at once if disk or CPU time is limited."
+  ],
+  "cases": [
+    {
+      "name": "diag_base_m4096_n4096_k4096_s95_d16",
+      "M": 4096,
+      "N": 4096,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "known fast regular baseline; M,N,K are all 4096; N is 4 full 1024-column B-pack batches"
+    },
+    {
+      "name": "diag_base_m4000_n4000_k4000_s95_d16",
+      "M": 4000,
+      "N": 4000,
+      "K": 4000,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "known slow baseline; compare against axis-isolation cases"
+    },
+    {
+      "name": "diag_axis_m4000_n4096_k4096_s95_d16",
+      "M": 4000,
+      "N": 4096,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "axis isolation: only M changes from the 4096 baseline; tests row-block/core scheduling and M-side effects"
+    },
+    {
+      "name": "diag_axis_m4096_n4000_k4096_s95_d16",
+      "M": 4096,
+      "N": 4000,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "axis isolation: only N changes from the 4096 baseline; tests B-pack tail and AIC N-tail effects"
+    },
+    {
+      "name": "diag_axis_m4096_n4096_k4000_s95_d16",
+      "M": 4096,
+      "N": 4096,
+      "K": 4000,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "axis isolation: only K changes from the 4096 baseline; tests sparse-vector distribution and adaptive tiling sensitivity"
+    },
+    {
+      "name": "diag_axis_m4000_n4096_k4000_s95_d16",
+      "M": 4000,
+      "N": 4096,
+      "K": 4000,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "axis isolation: M and K are 4000 while N remains regular; if fast, N is likely the dominant culprit"
+    },
+    {
+      "name": "diag_axis_m4000_n4000_k4096_s95_d16",
+      "M": 4000,
+      "N": 4000,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "axis isolation: M and N are 4000 while K remains regular; compares with N-only and full-4000 cases"
+    },
+    {
+      "name": "diag_axis_m4096_n4000_k4000_s95_d16",
+      "M": 4096,
+      "N": 4000,
+      "K": 4000,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "axis isolation: N and K are 4000 while M remains regular; separates N-tail from K/adaptive-tiling effects"
+    },
+
+    {
+      "name": "diag_n_m4096_n3072_k4096_s95_d16",
+      "M": 4096,
+      "N": 3072,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N sweep: 3 full 1024-column B-pack batches; should stay on the regular full_n_batch path"
+    },
+    {
+      "name": "diag_n_m4096_n3840_k4096_s95_d16",
+      "M": 4096,
+      "N": 3840,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N sweep: multiple of 128 but not 1024; no AIC compute tail, but final B-pack super-batch is partial"
+    },
+    {
+      "name": "diag_n_m4096_n3968_k4096_s95_d16",
+      "M": 4096,
+      "N": 3968,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N sweep: 31*128; isolates partial B-pack super-batch without AIC compute tail"
+    },
+    {
+      "name": "diag_n_m4096_n4080_k4096_s95_d16",
+      "M": 4096,
+      "N": 4080,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N sweep: 255*16, just below 4096; final B-pack super-batch is partial and final AIC batch has 112 columns"
+    },
+    {
+      "name": "diag_n_m4096_n4112_k4096_s95_d16",
+      "M": 4096,
+      "N": 4112,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N sweep: just above 4096; adds a tiny 16-column partial B-pack super-batch after four full batches"
+    },
+    {
+      "name": "diag_n_m4096_n5120_k4096_s95_d16",
+      "M": 4096,
+      "N": 5120,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N sweep: 5 full 1024-column B-pack batches; regular larger-N comparison"
+    },
+
+    {
+      "name": "diag_m_m3840_n4096_k4096_s95_d16",
+      "M": 3840,
+      "N": 4096,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "M sweep with regular N,K; tests row-block count effects without N-tail"
+    },
+    {
+      "name": "diag_m_m5120_n4096_k4096_s95_d16",
+      "M": 5120,
+      "N": 4096,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "M sweep with regular N,K; larger row-block count, still no N-tail"
+    },
+    {
+      "name": "diag_k_m4096_n4096_k3840_s95_d16",
+      "M": 4096,
+      "N": 4096,
+      "K": 3840,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "K sweep with regular M,N; lower expected vectors per row, should keep <=256 sparse tile"
+    },
+    {
+      "name": "diag_k_m4096_n4096_k5120_s95_d16",
+      "M": 4096,
+      "N": 4096,
+      "K": 5120,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "K sweep with regular M,N; expected vectors per row near 256, may expose adaptive tiling threshold sensitivity"
+    },
+
+    {
+      "name": "diag_s_m4096_n4096_k4096_s97_d16",
+      "M": 4096,
+      "N": 4096,
+      "K": 4096,
+      "sparsity": 97,
+      "d": 16,
+      "source_hint": "sparsity sweep on regular shape; lower nnz, should stay well below 256 vectors per row"
+    },
+    {
+      "name": "diag_s_m4096_n4096_k4096_s94_d16",
+      "M": 4096,
+      "N": 4096,
+      "K": 4096,
+      "sparsity": 94,
+      "d": 16,
+      "source_hint": "sparsity sweep on regular shape; near the <=256 max-vectors threshold for AIC_N_BATCH=8/SPARSE_K_TILE=256"
+    },
+    {
+      "name": "diag_s_m4096_n4096_k4096_s93_d16",
+      "M": 4096,
+      "N": 4096,
+      "K": 4096,
+      "sparsity": 93,
+      "d": 16,
+      "source_hint": "sparsity sweep on regular shape; likely crosses into AIC_N_BATCH=4/SPARSE_K_TILE=512"
+    },
+    {
+      "name": "diag_s_m4096_n4096_k4096_s90_d16",
+      "M": 4096,
+      "N": 4096,
+      "K": 4096,
+      "sparsity": 90,
+      "d": 16,
+      "source_hint": "sparsity sweep on regular shape; tests performance after sparse K tile grows beyond 256"
+    },
+    {
+      "name": "diag_s_m4096_n4096_k4096_s85_d16",
+      "M": 4096,
+      "N": 4096,
+      "K": 4096,
+      "sparsity": 85,
+      "d": 16,
+      "source_hint": "sparsity sweep on regular shape; heavier nnz case, useful for comparing adaptive tiling and effective TFLOPS"
+    }
+  ]
+}

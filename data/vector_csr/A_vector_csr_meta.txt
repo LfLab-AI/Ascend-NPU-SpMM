@@ -1,0 +1,4 @@
+shape: 4096 16
+d: 16
+num_vector_blocks: 52428
+row_blocks_count: 256

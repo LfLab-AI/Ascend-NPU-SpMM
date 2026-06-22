@@ -1,0 +1,74 @@
+[WARNING] msprof is running as root. For security reasons, use a regular user account instead.
+[INFO] Start profiling...
+✅ 成功读取二进制文件: ../../data/vector_csr/A_data.bin (元素数: 3355440)
+✅ 成功读取二进制文件: ../../data/vector_csr/A_cols.bin (元素数: 209715)
+✅ 成功读取二进制文件: ../../data/vector_csr/A_indptr.bin (元素数: 513)
+
+>>> A矩阵vector-CSR格式信息:
+向量块数量: 209715  向量维度d: 16
+行块数: 512  行指针长度: 513
+>>> 前16个元素（float）:
+0.8068 1.8913 -0.0070 -0.0550 -1.0989 -1.1836 -0.4663 0.6642 
+1.9265 -0.4475 -0.3277 -0.2794 -1.5871 -0.0168 0.4294 -0.2548 
+
+Runtime tiling dispatch: kernel=spmm_kernel_aic4_ktile512, aic_n_batch=4, sparse_k_tile=512, max_vectors_per_row=468
+B-pack workspace: double-buffered ring, slots=2, n_batch=64, aic_n_batch=4, sparse_k_tile=512, total_b_pack_elems=437518336
+✅ 成功读取二进制文件: ../../data/B_dense.bin (元素数: 67108864)
+>>> 前16个元素（__fp16）:
+-1.9746 -0.5605 1.0469 -1.5361 -0.2041 -2.0059 -0.1709 1.2861 
+-2.2871 -0.8940 -1.1680 1.7930 1.3213 -0.4236 -0.0359 -1.4502 
+
+Kernel start!
+Prof mode: launch spmm kernel 21 times for stable msprof statistics.
+
+===== Host Wall-Time Breakdown =====
+  acl init + handle        : 603.803 ms
+  host malloc/init         : 10.626 ms
+  read A vector CSR        : 13.663 ms
+  read B dense             : 227.089 ms
+  read C reference         : 0.000 ms
+  analyze sparse metadata  : 0.009 ms
+  pack B on host (once)    : 0.000 ms
+  debug host alloc/init    : 0.000 ms
+  device malloc            : 1.109 ms
+  H2D memcpy               : 5.872 ms
+  device memset            : 13.305 ms
+  kernel loop + sync       : 137.346 ms
+  kernel avg per launch    : 6.540 ms (21 launches)
+  D2H C memcpy             : 0.000 ms
+  D2H debug memcpy         : 0.000 ms
+  debug dump printing      : 0.000 ms
+  verification             : 0.000 ms
+  debug summary printing   : 0.000 ms
+  cleanup                  : 610.185 ms
+  total inside main        : 1623.049 ms
+====================================
+
+Kernel end!
+[INFO] Start export data in PROF_000001_20260621183034157_GJDGNQKQJANAFIBA.
+Sun 21 Jun 2026 18:30:38 [INFO] [MSVP] [1169686] msprof_common.py: Start analyzing data in "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_stress_m8192_n8192_k8192_s95_d16/PROF_000001_20260621183034157_GJDGNQKQJANAFIBA/host" ...
+Sun 21 Jun 2026 18:30:38 [INFO] [MSVP] [1169686] msprof_common.py: It may take few minutes, please be patient ...
+Sun 21 Jun 2026 18:30:38 [INFO] [MSVP] [1169686] msprof_common.py: Analysis data in "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_stress_m8192_n8192_k8192_s95_d16/PROF_000001_20260621183034157_GJDGNQKQJANAFIBA/host" finished.
+Sun 21 Jun 2026 18:30:38 [INFO] [MSVP] [1169686] msprof_common.py: Start analyzing data in "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_stress_m8192_n8192_k8192_s95_d16/PROF_000001_20260621183034157_GJDGNQKQJANAFIBA/device_0" ...
+Sun 21 Jun 2026 18:30:38 [INFO] [MSVP] [1169686] msprof_common.py: It may take few minutes, please be patient ...
+Sun 21 Jun 2026 18:30:38 [INFO] [MSVP] [1169686] msprof_common.py: Analysis data in "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_stress_m8192_n8192_k8192_s95_d16/PROF_000001_20260621183034157_GJDGNQKQJANAFIBA/device_0" finished.
+Sun 21 Jun 2026 18:30:38 [INFO] [MSVP] [1169686] msprof_export.py: All collected data will be exported, path is: /root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_stress_m8192_n8192_k8192_s95_d16/PROF_000001_20260621183034157_GJDGNQKQJANAFIBA/device_0.
+Sun 21 Jun 2026 18:30:38 [INFO] [MSVP] [1169686] msprof_export.py: There is no timeline data to export for "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_stress_m8192_n8192_k8192_s95_d16/PROF_000001_20260621183034157_GJDGNQKQJANAFIBA/host"
+Sun 21 Jun 2026 18:30:39 [INFO] [MSVP] [1169851] msprof_export.py: The data in "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_stress_m8192_n8192_k8192_s95_d16/PROF_000001_20260621183034157_GJDGNQKQJANAFIBA/host" has been analyzed. Parsing phase will be skipped.
+Sun 21 Jun 2026 18:30:39 [INFO] [MSVP] [1169851] msprof_export.py: The data in "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_stress_m8192_n8192_k8192_s95_d16/PROF_000001_20260621183034157_GJDGNQKQJANAFIBA/device_0" has been analyzed. Parsing phase will be skipped.
+Sun 21 Jun 2026 18:30:39 [INFO] [MSVP] [1169851] msprof_export.py: All collected data will be exported, path is: /root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_stress_m8192_n8192_k8192_s95_d16/PROF_000001_20260621183034157_GJDGNQKQJANAFIBA/device_0.
+Sun 21 Jun 2026 18:30:39 [INFO] [MSVP] [1169851] msprof_export.py: There is no summary data to export for "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_stress_m8192_n8192_k8192_s95_d16/PROF_000001_20260621183034157_GJDGNQKQJANAFIBA/host"
+Sun 21 Jun 2026 18:30:39 [INFO] [MSVP] [1169851] msprof_export.py: All collected data will be exported, path is: /root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_stress_m8192_n8192_k8192_s95_d16/PROF_000001_20260621183034157_GJDGNQKQJANAFIBA/device_0.
+Sun 21 Jun 2026 18:30:39 [INFO] [MSVP] [1169851] msprof_common.py: Start exporting summary output_file.
+Sun 21 Jun 2026 18:30:39 [INFO] [MSVP] [1169851] msprof_common.py: End exporting summary output_file.The file is stored in the /root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_stress_m8192_n8192_k8192_s95_d16/PROF_000001_20260621183034157_GJDGNQKQJANAFIBA/mindstudio_profiler_output path.
+[INFO] Export all data in PROF_000001_20260621183034157_GJDGNQKQJANAFIBA done.
+[INFO] Start query data in PROF_000001_20260621183034157_GJDGNQKQJANAFIBA.
+Job Info	Device ID	Dir Name	Collection Time           	Model ID	Iteration Number	Top Time Iteration	Rank ID	
+
+NA      	         	host    	2026-06-21 18:30:34.159971	N/A     	N/A             	N/A               	-1     	
+
+NA      	0        	device_0	2026-06-21 18:30:34.732468	N/A     	N/A             	N/A               	-1     	
+
+[INFO] Query all data in PROF_000001_20260621183034157_GJDGNQKQJANAFIBA done.
+[INFO] Profiling finished.
+[INFO] Process profiling data complete. Data is saved in /root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_stress_m8192_n8192_k8192_s95_d16/PROF_000001_20260621183034157_GJDGNQKQJANAFIBA

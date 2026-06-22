@@ -1,0 +1,353 @@
+{
+  "notes": [
+    "Benchmark cases for SpMM multi-tiling dispatch. All case names start with bench_.",
+    "Square sweep: 6 sizes from 256 to 4096, each with sparsity 85/90/95/98/99.",
+    "One 8192 square stress case is included at sparsity 95.",
+    "Six rectangular cases are included at sparsity 95 to cover transformer/RNN/BERT/conv-like shapes.",
+    "Special case bench_special_m3333_n4448_k5555_s95_d16 is intentionally irregular. Current vector-CSR/kernel may require M multiple of 16; if it fails, that indicates M-tail support is not complete."
+  ],
+  "cases": [
+    {
+      "name": "bench_sq_m256_n256_k256_s85_d16",
+      "M": 256,
+      "N": 256,
+      "K": 256,
+      "sparsity": 85,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=256, sparsity=85%"
+    },
+    {
+      "name": "bench_sq_m256_n256_k256_s90_d16",
+      "M": 256,
+      "N": 256,
+      "K": 256,
+      "sparsity": 90,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=256, sparsity=90%"
+    },
+    {
+      "name": "bench_sq_m256_n256_k256_s95_d16",
+      "M": 256,
+      "N": 256,
+      "K": 256,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=256, sparsity=95%"
+    },
+    {
+      "name": "bench_sq_m256_n256_k256_s98_d16",
+      "M": 256,
+      "N": 256,
+      "K": 256,
+      "sparsity": 98,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=256, sparsity=98%"
+    },
+    {
+      "name": "bench_sq_m256_n256_k256_s99_d16",
+      "M": 256,
+      "N": 256,
+      "K": 256,
+      "sparsity": 99,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=256, sparsity=99%"
+    },
+    {
+      "name": "bench_sq_m512_n512_k512_s85_d16",
+      "M": 512,
+      "N": 512,
+      "K": 512,
+      "sparsity": 85,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=512, sparsity=85%"
+    },
+    {
+      "name": "bench_sq_m512_n512_k512_s90_d16",
+      "M": 512,
+      "N": 512,
+      "K": 512,
+      "sparsity": 90,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=512, sparsity=90%"
+    },
+    {
+      "name": "bench_sq_m512_n512_k512_s95_d16",
+      "M": 512,
+      "N": 512,
+      "K": 512,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=512, sparsity=95%"
+    },
+    {
+      "name": "bench_sq_m512_n512_k512_s98_d16",
+      "M": 512,
+      "N": 512,
+      "K": 512,
+      "sparsity": 98,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=512, sparsity=98%"
+    },
+    {
+      "name": "bench_sq_m512_n512_k512_s99_d16",
+      "M": 512,
+      "N": 512,
+      "K": 512,
+      "sparsity": 99,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=512, sparsity=99%"
+    },
+    {
+      "name": "bench_sq_m1024_n1024_k1024_s85_d16",
+      "M": 1024,
+      "N": 1024,
+      "K": 1024,
+      "sparsity": 85,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=1024, sparsity=85%"
+    },
+    {
+      "name": "bench_sq_m1024_n1024_k1024_s90_d16",
+      "M": 1024,
+      "N": 1024,
+      "K": 1024,
+      "sparsity": 90,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=1024, sparsity=90%"
+    },
+    {
+      "name": "bench_sq_m1024_n1024_k1024_s95_d16",
+      "M": 1024,
+      "N": 1024,
+      "K": 1024,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=1024, sparsity=95%"
+    },
+    {
+      "name": "bench_sq_m1024_n1024_k1024_s98_d16",
+      "M": 1024,
+      "N": 1024,
+      "K": 1024,
+      "sparsity": 98,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=1024, sparsity=98%"
+    },
+    {
+      "name": "bench_sq_m1024_n1024_k1024_s99_d16",
+      "M": 1024,
+      "N": 1024,
+      "K": 1024,
+      "sparsity": 99,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=1024, sparsity=99%"
+    },
+    {
+      "name": "bench_sq_m2048_n2048_k2048_s85_d16",
+      "M": 2048,
+      "N": 2048,
+      "K": 2048,
+      "sparsity": 85,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=2048, sparsity=85%"
+    },
+    {
+      "name": "bench_sq_m2048_n2048_k2048_s90_d16",
+      "M": 2048,
+      "N": 2048,
+      "K": 2048,
+      "sparsity": 90,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=2048, sparsity=90%"
+    },
+    {
+      "name": "bench_sq_m2048_n2048_k2048_s95_d16",
+      "M": 2048,
+      "N": 2048,
+      "K": 2048,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=2048, sparsity=95%"
+    },
+    {
+      "name": "bench_sq_m2048_n2048_k2048_s98_d16",
+      "M": 2048,
+      "N": 2048,
+      "K": 2048,
+      "sparsity": 98,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=2048, sparsity=98%"
+    },
+    {
+      "name": "bench_sq_m2048_n2048_k2048_s99_d16",
+      "M": 2048,
+      "N": 2048,
+      "K": 2048,
+      "sparsity": 99,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=2048, sparsity=99%"
+    },
+    {
+      "name": "bench_sq_m3072_n3072_k3072_s85_d16",
+      "M": 3072,
+      "N": 3072,
+      "K": 3072,
+      "sparsity": 85,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=3072, sparsity=85%"
+    },
+    {
+      "name": "bench_sq_m3072_n3072_k3072_s90_d16",
+      "M": 3072,
+      "N": 3072,
+      "K": 3072,
+      "sparsity": 90,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=3072, sparsity=90%"
+    },
+    {
+      "name": "bench_sq_m3072_n3072_k3072_s95_d16",
+      "M": 3072,
+      "N": 3072,
+      "K": 3072,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=3072, sparsity=95%"
+    },
+    {
+      "name": "bench_sq_m3072_n3072_k3072_s98_d16",
+      "M": 3072,
+      "N": 3072,
+      "K": 3072,
+      "sparsity": 98,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=3072, sparsity=98%"
+    },
+    {
+      "name": "bench_sq_m3072_n3072_k3072_s99_d16",
+      "M": 3072,
+      "N": 3072,
+      "K": 3072,
+      "sparsity": 99,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=3072, sparsity=99%"
+    },
+    {
+      "name": "bench_sq_m4096_n4096_k4096_s85_d16",
+      "M": 4096,
+      "N": 4096,
+      "K": 4096,
+      "sparsity": 85,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=4096, sparsity=85%"
+    },
+    {
+      "name": "bench_sq_m4096_n4096_k4096_s90_d16",
+      "M": 4096,
+      "N": 4096,
+      "K": 4096,
+      "sparsity": 90,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=4096, sparsity=90%"
+    },
+    {
+      "name": "bench_sq_m4096_n4096_k4096_s95_d16",
+      "M": 4096,
+      "N": 4096,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=4096, sparsity=95%"
+    },
+    {
+      "name": "bench_sq_m4096_n4096_k4096_s98_d16",
+      "M": 4096,
+      "N": 4096,
+      "K": 4096,
+      "sparsity": 98,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=4096, sparsity=98%"
+    },
+    {
+      "name": "bench_sq_m4096_n4096_k4096_s99_d16",
+      "M": 4096,
+      "N": 4096,
+      "K": 4096,
+      "sparsity": 99,
+      "d": 16,
+      "source_hint": "square benchmark sweep: size=4096, sparsity=99%"
+    },
+    {
+      "name": "bench_stress_m8192_n8192_k8192_s95_d16",
+      "M": 8192,
+      "N": 8192,
+      "K": 8192,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "single 8192 square stress test at sparsity 95%"
+    },
+    {
+      "name": "bench_rect_conv_m512_n3136_k512_s95_d16",
+      "M": 512,
+      "N": 3136,
+      "K": 512,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "1x1 convolution-like lowered GEMM, 56x56 spatial columns"
+    },
+    {
+      "name": "bench_rect_bert_down_m768_n1024_k3072_s95_d16",
+      "M": 768,
+      "N": 1024,
+      "K": 3072,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "BERT-base-like FFN down projection"
+    },
+    {
+      "name": "bench_rect_tfdown_m1024_n2048_k4096_s95_d16",
+      "M": 1024,
+      "N": 2048,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "Transformer FFN down projection"
+    },
+    {
+      "name": "bench_rect_rnn_m2048_n128_k8192_s95_d16",
+      "M": 2048,
+      "N": 128,
+      "K": 8192,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "RNN/LSTM-like hidden/input projection with small batch columns"
+    },
+    {
+      "name": "bench_rect_bert_up_m3072_n1024_k768_s95_d16",
+      "M": 3072,
+      "N": 1024,
+      "K": 768,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "BERT-base-like FFN up projection"
+    },
+    {
+      "name": "bench_rect_tfup_m4096_n2048_k1024_s95_d16",
+      "M": 4096,
+      "N": 2048,
+      "K": 1024,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "Transformer FFN up projection with large activation columns"
+    },
+    {
+      "name": "bench_special_m4448_n3333_k5555_s95_d16",
+      "M": 4448,
+      "N": 3333,
+      "K": 5555,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "special irregular generality case: M is divisible by 16; N and K are intentionally irregular and not required to be multiples of 16"
+    }
+  ]
+}

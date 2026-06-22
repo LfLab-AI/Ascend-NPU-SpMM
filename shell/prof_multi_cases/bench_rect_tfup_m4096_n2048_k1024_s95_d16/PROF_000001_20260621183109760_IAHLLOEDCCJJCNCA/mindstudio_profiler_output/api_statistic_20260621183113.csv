@@ -1,0 +1,10 @@
+Device_id,Level,API Name,Time(us),Count,Avg(us),Min(us),Max(us),Variance
+host,acl,aclrtCreateStream,571.1,1,571.1,571.1,571.1,0
+host,acl,aclrtFree,427,7,61,1.94,398.61,19018.139
+host,acl,aclrtFreeHost,9.18,1,9.18,9.18,9.18,0
+host,acl,aclrtMalloc,256.05,7,36.579,2.23,130.68,1799.997
+host,acl,aclrtMallocHost,68.88,1,68.88,68.88,68.88,0
+host,acl,aclrtMemcpy,383.26,5,76.652,11.98,204.62,6142.897
+host,acl,aclrtMemset,1665.11,1,1665.11,1665.11,1665.11,0
+host,acl,aclrtResetDevice,327364.16,1,327364.16,327364.16,327364.16,0
+host,acl,aclrtSynchronizeStream,6950.81,22,315.946,1.83,352.02,4733.97

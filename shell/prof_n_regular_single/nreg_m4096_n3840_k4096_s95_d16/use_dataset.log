@@ -1,0 +1,10 @@
+{
+  "case": "nreg_m4096_n3840_k4096_s95_d16",
+  "mode": "full",
+  "M": 4096,
+  "N": 3840,
+  "K": 4096,
+  "sparsity": 95,
+  "d": 16,
+  "target": "/root/LHX/Magicore-final260620/ascblas/data"
+}

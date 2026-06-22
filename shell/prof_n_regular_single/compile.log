@@ -1,0 +1,33 @@
+rm -rf build/
+mkdir -p build
+ccec -std=c++17 -c -x cce -O2 ../src/spmm_kernel.cce --cce-aicore-arch=dav-c220-cube --cce-aicore-only \
+-DSPMM_AIC_N_BATCH=8 -DSPMM_SPARSE_K_TILE=256 \
+-I/usr/local/Ascend/ascend-toolkit/latest/compiler/tikcpp/tikcfw \
+-I/usr/local/Ascend/ascend-toolkit/latest/compiler/tikcpp/tikcfw/interface \
+-I/usr/local/Ascend/ascend-toolkit/latest/compiler/tikcpp/tikcfw/impl \
+-I../include -I../src/utils \
+-o build/spmm_kernel_aic.o
+ccec -std=c++17 -c -x cce -O2 ../src/spmm_kernel.cce --cce-aicore-arch=dav-c220-vec --cce-aicore-only \
+-DSPMM_AIC_N_BATCH=8 -DSPMM_SPARSE_K_TILE=256 \
+-I/usr/local/Ascend/ascend-toolkit/latest/compiler/tikcpp/tikcfw \
+-I/usr/local/Ascend/ascend-toolkit/latest/compiler/tikcpp/tikcfw/interface \
+-I/usr/local/Ascend/ascend-toolkit/latest/compiler/tikcpp/tikcfw/impl \
+-I../include -I../src/utils \
+-o build/spmm_kernel_aiv.o
+ld.lld -m aicorelinux -Ttext=0 -z separate-code \
+build/spmm_kernel_aic.o build/spmm_kernel_aiv.o \
+--allow-multiple-definition -static \
+-o build/spmm_kernel.o
+ld.lld: warning: -z separate-code and -z separate-loadable-segments will be ignored
+g++ -O2 -fpic -std=c++17 \
+-DSPMM_AIC_N_BATCH=8 -DSPMM_SPARSE_K_TILE=256 \
+../include/handle.cc \
+../src/main.cpp \
+-I/usr/local/Ascend/ascend-toolkit/latest/include \
+-I../include -I../src/utils \
+-L/usr/local/Ascend/ascend-toolkit/latest/lib64 \
+-o build/spmm \
+-lascendcl \
+-lruntime \
+-lstdc++ \
+-lpthread

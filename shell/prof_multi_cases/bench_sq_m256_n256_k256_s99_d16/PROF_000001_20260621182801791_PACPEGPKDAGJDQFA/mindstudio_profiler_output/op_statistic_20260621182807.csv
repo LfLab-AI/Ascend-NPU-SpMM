@@ -1,0 +1,2 @@
+Device_id,OP Type,Core Type,Count,Total Time(us),Min Time(us),Avg Time(us),Max Time(us),Ratio(%)
+0,spmm_kernel_aic8_ktile256,MIX_AIC,21,224.36,6.04,10.683,67.26,100

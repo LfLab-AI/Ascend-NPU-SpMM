@@ -1,0 +1,74 @@
+[WARNING] msprof is running as root. For security reasons, use a regular user account instead.
+[INFO] Start profiling...
+Host-side N padding enabled: N_original=2049, N_kernel=2176 (pad 127 columns, granularity=128)
+✅ 成功读取二进制文件: ../../data/vector_csr/A_data.bin (元素数: 838848)
+✅ 成功读取二进制文件: ../../data/vector_csr/A_cols.bin (元素数: 52428)
+✅ 成功读取二进制文件: ../../data/vector_csr/A_indptr.bin (元素数: 257)
+
+>>> A矩阵vector-CSR格式信息:
+向量块数量: 52428  向量维度d: 16
+行块数: 256  行指针长度: 257
+>>> 前16个元素（float）:
+1.7576 0.5726 1.0254 -0.0412 0.6238 -1.4807 1.0595 -1.3611 
+-0.2225 -0.6165 -1.1391 0.5226 1.2528 0.6927 0.4189 -0.6431 
+
+✅ 成功读取二进制文件: ../../data/B_dense.bin (元素数: 8392704)
+>>> 前16个元素（__fp16）:
+-0.3831 1.6152 0.3857 -0.4470 0.6138 0.4768 -0.1421 0.0213 
+-0.0438 -1.1182 -0.2058 -1.2236 -0.0320 0.2959 -1.5898 -0.0398 
+
+B-pack workspace: double-buffered ring, slots=2, n_batch=64, aic_n_batch=8, sparse_k_tile=256, total_b_pack_elems=111443968
+Kernel start!
+Prof mode: launch spmm kernel 21 times for stable msprof statistics.
+
+===== Host Wall-Time Breakdown =====
+  acl init + handle        : 615.285 ms
+  host malloc/init         : 1.457 ms
+  read A vector CSR        : 3.734 ms
+  read B dense             : 29.497 ms
+  read C reference         : 0.000 ms
+  analyze sparse metadata  : 0.037 ms
+  pack B on host (once)    : 0.000 ms
+  debug host alloc/init    : 0.000 ms
+  device malloc            : 0.392 ms
+  H2D memcpy               : 0.983 ms
+  device memset            : 1.805 ms
+  kernel loop + sync       : 12.317 ms
+  kernel avg per launch    : 0.587 ms (21 launches)
+  D2H C memcpy             : 0.000 ms
+  D2H debug memcpy         : 0.000 ms
+  debug dump printing      : 0.000 ms
+  verification             : 0.000 ms
+  debug summary printing   : 0.000 ms
+  cleanup                  : 911.378 ms
+  total inside main        : 1576.958 ms
+====================================
+
+Kernel end!
+[INFO] Start export data in PROF_000001_20260621160800006_LRFLEFQPGIQDAABC.
+Sun 21 Jun 2026 16:08:04 [INFO] [MSVP] [707807] msprof_common.py: Start analyzing data in "/root/LHX/Magicore-final260620/ascblas/shell/prof_n_regular_single/nreg_m4096_n2049_k4096_s95_d16/PROF_000001_20260621160800006_LRFLEFQPGIQDAABC/host" ...
+Sun 21 Jun 2026 16:08:04 [INFO] [MSVP] [707807] msprof_common.py: It may take few minutes, please be patient ...
+Sun 21 Jun 2026 16:08:04 [INFO] [MSVP] [707807] msprof_common.py: Analysis data in "/root/LHX/Magicore-final260620/ascblas/shell/prof_n_regular_single/nreg_m4096_n2049_k4096_s95_d16/PROF_000001_20260621160800006_LRFLEFQPGIQDAABC/host" finished.
+Sun 21 Jun 2026 16:08:04 [INFO] [MSVP] [707807] msprof_common.py: Start analyzing data in "/root/LHX/Magicore-final260620/ascblas/shell/prof_n_regular_single/nreg_m4096_n2049_k4096_s95_d16/PROF_000001_20260621160800006_LRFLEFQPGIQDAABC/device_0" ...
+Sun 21 Jun 2026 16:08:04 [INFO] [MSVP] [707807] msprof_common.py: It may take few minutes, please be patient ...
+Sun 21 Jun 2026 16:08:04 [INFO] [MSVP] [707807] msprof_common.py: Analysis data in "/root/LHX/Magicore-final260620/ascblas/shell/prof_n_regular_single/nreg_m4096_n2049_k4096_s95_d16/PROF_000001_20260621160800006_LRFLEFQPGIQDAABC/device_0" finished.
+Sun 21 Jun 2026 16:08:04 [INFO] [MSVP] [707807] msprof_export.py: All collected data will be exported, path is: /root/LHX/Magicore-final260620/ascblas/shell/prof_n_regular_single/nreg_m4096_n2049_k4096_s95_d16/PROF_000001_20260621160800006_LRFLEFQPGIQDAABC/device_0.
+Sun 21 Jun 2026 16:08:04 [INFO] [MSVP] [707807] msprof_export.py: There is no timeline data to export for "/root/LHX/Magicore-final260620/ascblas/shell/prof_n_regular_single/nreg_m4096_n2049_k4096_s95_d16/PROF_000001_20260621160800006_LRFLEFQPGIQDAABC/host"
+Sun 21 Jun 2026 16:08:05 [INFO] [MSVP] [707972] msprof_export.py: The data in "/root/LHX/Magicore-final260620/ascblas/shell/prof_n_regular_single/nreg_m4096_n2049_k4096_s95_d16/PROF_000001_20260621160800006_LRFLEFQPGIQDAABC/host" has been analyzed. Parsing phase will be skipped.
+Sun 21 Jun 2026 16:08:05 [INFO] [MSVP] [707972] msprof_export.py: The data in "/root/LHX/Magicore-final260620/ascblas/shell/prof_n_regular_single/nreg_m4096_n2049_k4096_s95_d16/PROF_000001_20260621160800006_LRFLEFQPGIQDAABC/device_0" has been analyzed. Parsing phase will be skipped.
+Sun 21 Jun 2026 16:08:05 [INFO] [MSVP] [707972] msprof_export.py: All collected data will be exported, path is: /root/LHX/Magicore-final260620/ascblas/shell/prof_n_regular_single/nreg_m4096_n2049_k4096_s95_d16/PROF_000001_20260621160800006_LRFLEFQPGIQDAABC/device_0.
+Sun 21 Jun 2026 16:08:05 [INFO] [MSVP] [707972] msprof_export.py: There is no summary data to export for "/root/LHX/Magicore-final260620/ascblas/shell/prof_n_regular_single/nreg_m4096_n2049_k4096_s95_d16/PROF_000001_20260621160800006_LRFLEFQPGIQDAABC/host"
+Sun 21 Jun 2026 16:08:05 [INFO] [MSVP] [707972] msprof_export.py: All collected data will be exported, path is: /root/LHX/Magicore-final260620/ascblas/shell/prof_n_regular_single/nreg_m4096_n2049_k4096_s95_d16/PROF_000001_20260621160800006_LRFLEFQPGIQDAABC/device_0.
+Sun 21 Jun 2026 16:08:05 [INFO] [MSVP] [707972] msprof_common.py: Start exporting summary output_file.
+Sun 21 Jun 2026 16:08:05 [INFO] [MSVP] [707972] msprof_common.py: End exporting summary output_file.The file is stored in the /root/LHX/Magicore-final260620/ascblas/shell/prof_n_regular_single/nreg_m4096_n2049_k4096_s95_d16/PROF_000001_20260621160800006_LRFLEFQPGIQDAABC/mindstudio_profiler_output path.
+[INFO] Export all data in PROF_000001_20260621160800006_LRFLEFQPGIQDAABC done.
+[INFO] Start query data in PROF_000001_20260621160800006_LRFLEFQPGIQDAABC.
+Job Info	Device ID	Dir Name	Collection Time           	Model ID	Iteration Number	Top Time Iteration	Rank ID	
+
+NA      	         	host    	2026-06-21 16:08:00.009425	N/A     	N/A             	N/A               	-1     	
+
+NA      	0        	device_0	2026-06-21 16:08:00.592047	N/A     	N/A             	N/A               	-1     	
+
+[INFO] Query all data in PROF_000001_20260621160800006_LRFLEFQPGIQDAABC done.
+[INFO] Profiling finished.
+[INFO] Process profiling data complete. Data is saved in /root/LHX/Magicore-final260620/ascblas/shell/prof_n_regular_single/nreg_m4096_n2049_k4096_s95_d16/PROF_000001_20260621160800006_LRFLEFQPGIQDAABC

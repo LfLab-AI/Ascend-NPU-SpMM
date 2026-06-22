@@ -1,0 +1,10 @@
+{
+  "case": "bench_special_m4448_n3333_k5555_s95_d16",
+  "mode": "full",
+  "M": 4448,
+  "N": 3333,
+  "K": 5555,
+  "sparsity": 95,
+  "d": 16,
+  "target": "/root/LHX/Magicore/ascblas/data"
+}

@@ -1,0 +1,10 @@
+{
+  "case": "bench_rect_bert_down_m768_n1024_k3072_s95_d16",
+  "mode": "full",
+  "M": 768,
+  "N": 1024,
+  "K": 3072,
+  "sparsity": 95,
+  "d": 16,
+  "target": "/root/LHX/Magicore/ascblas/data"
+}

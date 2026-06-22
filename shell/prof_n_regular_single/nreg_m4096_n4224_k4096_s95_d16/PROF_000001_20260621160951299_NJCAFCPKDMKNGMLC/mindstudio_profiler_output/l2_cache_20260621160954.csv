@@ -1,0 +1,21 @@
+Device_id,Stream Id,Task Id,Hit Rate,Victim Rate,Op Name
+0,47,1,N/A,0.082303,spmm_kernel
+0,47,2,N/A,0.083813,spmm_kernel
+0,47,3,N/A,0.082882,spmm_kernel
+0,47,4,N/A,0.084123,spmm_kernel
+0,47,5,N/A,0.082315,spmm_kernel
+0,47,6,N/A,0.084343,spmm_kernel
+0,47,7,N/A,0.082549,spmm_kernel
+0,47,8,N/A,0.083843,spmm_kernel
+0,47,9,N/A,0.082862,spmm_kernel
+0,47,10,N/A,0.084014,spmm_kernel
+0,47,11,N/A,0.082445,spmm_kernel
+0,47,12,N/A,0.08425,spmm_kernel
+0,47,13,N/A,0.082621,spmm_kernel
+0,47,14,N/A,0.083832,spmm_kernel
+0,47,15,N/A,0.08283,spmm_kernel
+0,47,16,N/A,0.084044,spmm_kernel
+0,47,17,N/A,0.082461,spmm_kernel
+0,47,18,N/A,0.084197,spmm_kernel
+0,47,19,N/A,0.082636,spmm_kernel
+0,47,20,N/A,0.083836,spmm_kernel

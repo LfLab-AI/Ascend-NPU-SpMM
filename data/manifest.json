@@ -1,0 +1,41 @@
+{
+  "name": "bench_special_m4448_n3333_k5555_s95_d16",
+  "M": 4448,
+  "N": 3333,
+  "K": 5555,
+  "sparsity": 95,
+  "d": 16,
+  "source_hint": "special irregular generality case: M is divisible by 16; N and K are intentionally irregular and not required to be multiples of 16",
+  "mode": "full",
+  "generated_at_utc": "2026-06-21T10:22:42.740648+00:00",
+  "storage_estimate": {
+    "A_dense_bytes": 98834560,
+    "B_dense_bytes": 74059260,
+    "C_dense_bytes": 59300736,
+    "dense_abc_bytes": 232194556
+  },
+  "layout": {
+    "A_dense.bin": "M x K row-major float32",
+    "B_dense.bin": "K x N row-major float32",
+    "C_dense.bin": "M x N row-major float32 reference, computed as A @ B",
+    "vector_csr/A_data.bin": "vector blocks, float32, d contiguous values per vector",
+    "vector_csr/A_cols.bin": "int32 column index per vector block",
+    "vector_csr/A_indptr.bin": "int32 row-block pointer, length M/d + 1"
+  },
+  "files": [
+    "A_dense.bin",
+    "A_dense_meta.txt",
+    "B_dense.bin",
+    "B_dense_meta.txt",
+    "C_dense.bin",
+    "C_dense_meta.txt",
+    "csr/A_csr_meta.txt",
+    "csr/A_data.bin",
+    "csr/A_indices.bin",
+    "csr/A_indptr.bin",
+    "vector_csr/A_cols.bin",
+    "vector_csr/A_data.bin",
+    "vector_csr/A_indptr.bin",
+    "vector_csr/A_vector_csr_meta.txt"
+  ]
+}

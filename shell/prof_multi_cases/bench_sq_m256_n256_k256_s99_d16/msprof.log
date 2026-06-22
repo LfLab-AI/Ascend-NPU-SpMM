@@ -1,0 +1,74 @@
+[WARNING] msprof is running as root. For security reasons, use a regular user account instead.
+[INFO] Start profiling...
+✅ 成功读取二进制文件: ../../data/vector_csr/A_data.bin (元素数: 640)
+✅ 成功读取二进制文件: ../../data/vector_csr/A_cols.bin (元素数: 40)
+✅ 成功读取二进制文件: ../../data/vector_csr/A_indptr.bin (元素数: 17)
+
+>>> A矩阵vector-CSR格式信息:
+向量块数量: 40  向量维度d: 16
+行块数: 16  行指针长度: 17
+>>> 前16个元素（float）:
+-1.1443 1.6354 1.8795 -0.3760 0.7874 -0.5089 1.1388 -1.7938 
+-1.4272 0.0244 1.7122 0.0430 0.1608 -0.0701 0.4248 -1.6203 
+
+Runtime tiling dispatch: kernel=spmm_kernel_aic8_ktile256, aic_n_batch=8, sparse_k_tile=256, max_vectors_per_row=8
+B-pack workspace: double-buffered ring, slots=2, n_batch=64, aic_n_batch=8, sparse_k_tile=256, total_b_pack_elems=491520
+✅ 成功读取二进制文件: ../../data/B_dense.bin (元素数: 65536)
+>>> 前16个元素（__fp16）:
+0.3103 -0.0456 0.1472 -0.0253 -0.0180 -0.0873 -0.0105 0.1517 
+1.3945 0.7300 0.7202 -1.1523 0.4827 -0.4443 0.6187 0.5938 
+
+Kernel start!
+Prof mode: launch spmm kernel 21 times for stable msprof statistics.
+
+===== Host Wall-Time Breakdown =====
+  acl init + handle        : 623.267 ms
+  host malloc/init         : 0.044 ms
+  read A vector CSR        : 0.214 ms
+  read B dense             : 0.292 ms
+  read C reference         : 0.000 ms
+  analyze sparse metadata  : 0.006 ms
+  pack B on host (once)    : 0.000 ms
+  debug host alloc/init    : 0.000 ms
+  device malloc            : 0.039 ms
+  H2D memcpy               : 0.110 ms
+  device memset            : 0.080 ms
+  kernel loop + sync       : 3.318 ms
+  kernel avg per launch    : 0.158 ms (21 launches)
+  D2H C memcpy             : 0.000 ms
+  D2H debug memcpy         : 0.000 ms
+  debug dump printing      : 0.000 ms
+  verification             : 0.000 ms
+  debug summary printing   : 0.000 ms
+  cleanup                  : 1294.389 ms
+  total inside main        : 1921.776 ms
+====================================
+
+Kernel end!
+[INFO] Start export data in PROF_000001_20260621182801791_PACPEGPKDAGJDQFA.
+Sun 21 Jun 2026 18:28:06 [INFO] [MSVP] [1155566] msprof_common.py: Start analyzing data in "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_sq_m256_n256_k256_s99_d16/PROF_000001_20260621182801791_PACPEGPKDAGJDQFA/host" ...
+Sun 21 Jun 2026 18:28:06 [INFO] [MSVP] [1155566] msprof_common.py: It may take few minutes, please be patient ...
+Sun 21 Jun 2026 18:28:06 [INFO] [MSVP] [1155566] msprof_common.py: Analysis data in "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_sq_m256_n256_k256_s99_d16/PROF_000001_20260621182801791_PACPEGPKDAGJDQFA/host" finished.
+Sun 21 Jun 2026 18:28:06 [INFO] [MSVP] [1155566] msprof_common.py: Start analyzing data in "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_sq_m256_n256_k256_s99_d16/PROF_000001_20260621182801791_PACPEGPKDAGJDQFA/device_0" ...
+Sun 21 Jun 2026 18:28:06 [INFO] [MSVP] [1155566] msprof_common.py: It may take few minutes, please be patient ...
+Sun 21 Jun 2026 18:28:06 [INFO] [MSVP] [1155566] msprof_common.py: Analysis data in "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_sq_m256_n256_k256_s99_d16/PROF_000001_20260621182801791_PACPEGPKDAGJDQFA/device_0" finished.
+Sun 21 Jun 2026 18:28:06 [INFO] [MSVP] [1155566] msprof_export.py: All collected data will be exported, path is: /root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_sq_m256_n256_k256_s99_d16/PROF_000001_20260621182801791_PACPEGPKDAGJDQFA/device_0.
+Sun 21 Jun 2026 18:28:06 [INFO] [MSVP] [1155566] msprof_export.py: There is no timeline data to export for "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_sq_m256_n256_k256_s99_d16/PROF_000001_20260621182801791_PACPEGPKDAGJDQFA/host"
+Sun 21 Jun 2026 18:28:07 [INFO] [MSVP] [1155744] msprof_export.py: The data in "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_sq_m256_n256_k256_s99_d16/PROF_000001_20260621182801791_PACPEGPKDAGJDQFA/host" has been analyzed. Parsing phase will be skipped.
+Sun 21 Jun 2026 18:28:07 [INFO] [MSVP] [1155744] msprof_export.py: The data in "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_sq_m256_n256_k256_s99_d16/PROF_000001_20260621182801791_PACPEGPKDAGJDQFA/device_0" has been analyzed. Parsing phase will be skipped.
+Sun 21 Jun 2026 18:28:07 [INFO] [MSVP] [1155744] msprof_export.py: All collected data will be exported, path is: /root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_sq_m256_n256_k256_s99_d16/PROF_000001_20260621182801791_PACPEGPKDAGJDQFA/device_0.
+Sun 21 Jun 2026 18:28:07 [INFO] [MSVP] [1155744] msprof_export.py: There is no summary data to export for "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_sq_m256_n256_k256_s99_d16/PROF_000001_20260621182801791_PACPEGPKDAGJDQFA/host"
+Sun 21 Jun 2026 18:28:07 [INFO] [MSVP] [1155744] msprof_export.py: All collected data will be exported, path is: /root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_sq_m256_n256_k256_s99_d16/PROF_000001_20260621182801791_PACPEGPKDAGJDQFA/device_0.
+Sun 21 Jun 2026 18:28:07 [INFO] [MSVP] [1155744] msprof_common.py: Start exporting summary output_file.
+Sun 21 Jun 2026 18:28:07 [INFO] [MSVP] [1155744] msprof_common.py: End exporting summary output_file.The file is stored in the /root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_sq_m256_n256_k256_s99_d16/PROF_000001_20260621182801791_PACPEGPKDAGJDQFA/mindstudio_profiler_output path.
+[INFO] Export all data in PROF_000001_20260621182801791_PACPEGPKDAGJDQFA done.
+[INFO] Start query data in PROF_000001_20260621182801791_PACPEGPKDAGJDQFA.
+Job Info	Device ID	Dir Name	Collection Time           	Model ID	Iteration Number	Top Time Iteration	Rank ID	
+
+NA      	         	host    	2026-06-21 18:28:01.794419	N/A     	N/A             	N/A               	-1     	
+
+NA      	0        	device_0	2026-06-21 18:28:02.377476	N/A     	N/A             	N/A               	-1     	
+
+[INFO] Query all data in PROF_000001_20260621182801791_PACPEGPKDAGJDQFA done.
+[INFO] Profiling finished.
+[INFO] Process profiling data complete. Data is saved in /root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_sq_m256_n256_k256_s99_d16/PROF_000001_20260621182801791_PACPEGPKDAGJDQFA

@@ -1,0 +1,10 @@
+{
+  "case": "bench_sq_m2048_n2048_k2048_s98_d16",
+  "mode": "full",
+  "M": 2048,
+  "N": 2048,
+  "K": 2048,
+  "sparsity": 98,
+  "d": 16,
+  "target": "/root/LHX/Magicore/ascblas/data"
+}

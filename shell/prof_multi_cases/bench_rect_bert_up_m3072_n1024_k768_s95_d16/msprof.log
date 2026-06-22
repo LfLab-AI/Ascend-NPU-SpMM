@@ -1,0 +1,74 @@
+[WARNING] msprof is running as root. For security reasons, use a regular user account instead.
+[INFO] Start profiling...
+✅ 成功读取二进制文件: ../../data/vector_csr/A_data.bin (元素数: 117952)
+✅ 成功读取二进制文件: ../../data/vector_csr/A_cols.bin (元素数: 7372)
+✅ 成功读取二进制文件: ../../data/vector_csr/A_indptr.bin (元素数: 193)
+
+>>> A矩阵vector-CSR格式信息:
+向量块数量: 7372  向量维度d: 16
+行块数: 192  行指针长度: 193
+>>> 前16个元素（float）:
+-2.3587 0.2180 1.1761 1.8051 -0.7668 -0.5152 0.3303 -0.0115 
+0.7934 -1.7865 -0.2275 0.0963 -0.0564 0.0816 -1.8302 0.0506 
+
+Runtime tiling dispatch: kernel=spmm_kernel_aic8_ktile256, aic_n_batch=8, sparse_k_tile=256, max_vectors_per_row=58
+B-pack workspace: double-buffered ring, slots=2, n_batch=64, aic_n_batch=8, sparse_k_tile=256, total_b_pack_elems=18120704
+✅ 成功读取二进制文件: ../../data/B_dense.bin (元素数: 786432)
+>>> 前16个元素（__fp16）:
+1.0420 -0.1138 1.7900 -0.2397 -1.3291 1.3125 -1.0723 1.5674 
+-3.1758 -2.7363 -2.4844 -0.3245 1.5625 1.5664 -0.4790 -0.2155 
+
+Kernel start!
+Prof mode: launch spmm kernel 21 times for stable msprof statistics.
+
+===== Host Wall-Time Breakdown =====
+  acl init + handle        : 601.359 ms
+  host malloc/init         : 0.180 ms
+  read A vector CSR        : 0.748 ms
+  read B dense             : 2.934 ms
+  read C reference         : 0.000 ms
+  analyze sparse metadata  : 0.007 ms
+  pack B on host (once)    : 0.000 ms
+  debug host alloc/init    : 0.000 ms
+  device malloc            : 0.201 ms
+  H2D memcpy               : 0.202 ms
+  device memset            : 0.640 ms
+  kernel loop + sync       : 4.812 ms
+  kernel avg per launch    : 0.229 ms (21 launches)
+  D2H C memcpy             : 0.000 ms
+  D2H debug memcpy         : 0.000 ms
+  debug dump printing      : 0.000 ms
+  verification             : 0.000 ms
+  debug summary printing   : 0.000 ms
+  cleanup                  : 680.768 ms
+  total inside main        : 1291.870 ms
+====================================
+
+Kernel end!
+[INFO] Start export data in PROF_000001_20260621183104502_QPJFMJCNABRKHFNA.
+Sun 21 Jun 2026 18:31:06 [INFO] [MSVP] [1173672] msprof_common.py: Start analyzing data in "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_rect_bert_up_m3072_n1024_k768_s95_d16/PROF_000001_20260621183104502_QPJFMJCNABRKHFNA/host" ...
+Sun 21 Jun 2026 18:31:06 [INFO] [MSVP] [1173672] msprof_common.py: It may take few minutes, please be patient ...
+Sun 21 Jun 2026 18:31:06 [INFO] [MSVP] [1173672] msprof_common.py: Analysis data in "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_rect_bert_up_m3072_n1024_k768_s95_d16/PROF_000001_20260621183104502_QPJFMJCNABRKHFNA/host" finished.
+Sun 21 Jun 2026 18:31:06 [INFO] [MSVP] [1173672] msprof_common.py: Start analyzing data in "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_rect_bert_up_m3072_n1024_k768_s95_d16/PROF_000001_20260621183104502_QPJFMJCNABRKHFNA/device_0" ...
+Sun 21 Jun 2026 18:31:06 [INFO] [MSVP] [1173672] msprof_common.py: It may take few minutes, please be patient ...
+Sun 21 Jun 2026 18:31:07 [INFO] [MSVP] [1173672] msprof_common.py: Analysis data in "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_rect_bert_up_m3072_n1024_k768_s95_d16/PROF_000001_20260621183104502_QPJFMJCNABRKHFNA/device_0" finished.
+Sun 21 Jun 2026 18:31:07 [INFO] [MSVP] [1173672] msprof_export.py: All collected data will be exported, path is: /root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_rect_bert_up_m3072_n1024_k768_s95_d16/PROF_000001_20260621183104502_QPJFMJCNABRKHFNA/device_0.
+Sun 21 Jun 2026 18:31:07 [INFO] [MSVP] [1173672] msprof_export.py: There is no timeline data to export for "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_rect_bert_up_m3072_n1024_k768_s95_d16/PROF_000001_20260621183104502_QPJFMJCNABRKHFNA/host"
+Sun 21 Jun 2026 18:31:07 [INFO] [MSVP] [1173837] msprof_export.py: The data in "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_rect_bert_up_m3072_n1024_k768_s95_d16/PROF_000001_20260621183104502_QPJFMJCNABRKHFNA/host" has been analyzed. Parsing phase will be skipped.
+Sun 21 Jun 2026 18:31:07 [INFO] [MSVP] [1173837] msprof_export.py: The data in "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_rect_bert_up_m3072_n1024_k768_s95_d16/PROF_000001_20260621183104502_QPJFMJCNABRKHFNA/device_0" has been analyzed. Parsing phase will be skipped.
+Sun 21 Jun 2026 18:31:07 [INFO] [MSVP] [1173837] msprof_export.py: All collected data will be exported, path is: /root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_rect_bert_up_m3072_n1024_k768_s95_d16/PROF_000001_20260621183104502_QPJFMJCNABRKHFNA/device_0.
+Sun 21 Jun 2026 18:31:07 [INFO] [MSVP] [1173837] msprof_export.py: There is no summary data to export for "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_rect_bert_up_m3072_n1024_k768_s95_d16/PROF_000001_20260621183104502_QPJFMJCNABRKHFNA/host"
+Sun 21 Jun 2026 18:31:07 [INFO] [MSVP] [1173837] msprof_export.py: All collected data will be exported, path is: /root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_rect_bert_up_m3072_n1024_k768_s95_d16/PROF_000001_20260621183104502_QPJFMJCNABRKHFNA/device_0.
+Sun 21 Jun 2026 18:31:07 [INFO] [MSVP] [1173837] msprof_common.py: Start exporting summary output_file.
+Sun 21 Jun 2026 18:31:07 [INFO] [MSVP] [1173837] msprof_common.py: End exporting summary output_file.The file is stored in the /root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_rect_bert_up_m3072_n1024_k768_s95_d16/PROF_000001_20260621183104502_QPJFMJCNABRKHFNA/mindstudio_profiler_output path.
+[INFO] Export all data in PROF_000001_20260621183104502_QPJFMJCNABRKHFNA done.
+[INFO] Start query data in PROF_000001_20260621183104502_QPJFMJCNABRKHFNA.
+Job Info	Device ID	Dir Name	Collection Time           	Model ID	Iteration Number	Top Time Iteration	Rank ID	
+
+NA      	         	host    	2026-06-21 18:31:04.505258	N/A     	N/A             	N/A               	-1     	
+
+NA      	0        	device_0	2026-06-21 18:31:05.075725	N/A     	N/A             	N/A               	-1     	
+
+[INFO] Query all data in PROF_000001_20260621183104502_QPJFMJCNABRKHFNA done.
+[INFO] Profiling finished.
+[INFO] Process profiling data complete. Data is saved in /root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_rect_bert_up_m3072_n1024_k768_s95_d16/PROF_000001_20260621183104502_QPJFMJCNABRKHFNA

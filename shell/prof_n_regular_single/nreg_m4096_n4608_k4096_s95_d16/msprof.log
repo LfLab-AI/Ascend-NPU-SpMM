@@ -1,0 +1,73 @@
+[WARNING] msprof is running as root. For security reasons, use a regular user account instead.
+[INFO] Start profiling...
+✅ 成功读取二进制文件: ../../data/vector_csr/A_data.bin (元素数: 838848)
+✅ 成功读取二进制文件: ../../data/vector_csr/A_cols.bin (元素数: 52428)
+✅ 成功读取二进制文件: ../../data/vector_csr/A_indptr.bin (元素数: 257)
+
+>>> A矩阵vector-CSR格式信息:
+向量块数量: 52428  向量维度d: 16
+行块数: 256  行指针长度: 257
+>>> 前16个元素（float）:
+-0.1165 0.3896 0.3310 0.9168 -0.3154 0.1287 -0.1358 0.2520 
+0.1004 0.9264 -0.1007 -0.8545 -1.2328 -1.1178 -0.2396 -1.1300 
+
+✅ 成功读取二进制文件: ../../data/B_dense.bin (元素数: 18874368)
+>>> 前16个元素（__fp16）:
+-0.5000 -0.6367 -1.6436 1.6045 0.5845 -0.1781 -0.5537 2.0469 
+0.0817 -2.2676 -0.2678 1.7734 -0.4172 0.4504 -1.1729 -1.0557 
+
+B-pack workspace: double-buffered ring, slots=2, n_batch=64, aic_n_batch=8, sparse_k_tile=256, total_b_pack_elems=111411200
+Kernel start!
+Prof mode: launch spmm kernel 21 times for stable msprof statistics.
+
+===== Host Wall-Time Breakdown =====
+  acl init + handle        : 601.800 ms
+  host malloc/init         : 2.988 ms
+  read A vector CSR        : 4.255 ms
+  read B dense             : 65.230 ms
+  read C reference         : 0.000 ms
+  analyze sparse metadata  : 0.027 ms
+  pack B on host (once)    : 0.000 ms
+  debug host alloc/init    : 0.000 ms
+  device malloc            : 0.507 ms
+  H2D memcpy               : 1.918 ms
+  device memset            : 3.906 ms
+  kernel loop + sync       : 20.449 ms
+  kernel avg per launch    : 0.974 ms (21 launches)
+  D2H C memcpy             : 0.000 ms
+  D2H debug memcpy         : 0.000 ms
+  debug dump printing      : 0.000 ms
+  verification             : 0.000 ms
+  debug summary printing   : 0.000 ms
+  cleanup                  : 1218.073 ms
+  total inside main        : 1919.185 ms
+====================================
+
+Kernel end!
+[INFO] Start export data in PROF_000001_20260621160956732_AEDHRONEKOREHMMB.
+Sun 21 Jun 2026 16:10:00 [INFO] [MSVP] [716671] msprof_common.py: Start analyzing data in "/root/LHX/Magicore-final260620/ascblas/shell/prof_n_regular_single/nreg_m4096_n4608_k4096_s95_d16/PROF_000001_20260621160956732_AEDHRONEKOREHMMB/host" ...
+Sun 21 Jun 2026 16:10:00 [INFO] [MSVP] [716671] msprof_common.py: It may take few minutes, please be patient ...
+Sun 21 Jun 2026 16:10:00 [INFO] [MSVP] [716671] msprof_common.py: Analysis data in "/root/LHX/Magicore-final260620/ascblas/shell/prof_n_regular_single/nreg_m4096_n4608_k4096_s95_d16/PROF_000001_20260621160956732_AEDHRONEKOREHMMB/host" finished.
+Sun 21 Jun 2026 16:10:00 [INFO] [MSVP] [716671] msprof_common.py: Start analyzing data in "/root/LHX/Magicore-final260620/ascblas/shell/prof_n_regular_single/nreg_m4096_n4608_k4096_s95_d16/PROF_000001_20260621160956732_AEDHRONEKOREHMMB/device_0" ...
+Sun 21 Jun 2026 16:10:00 [INFO] [MSVP] [716671] msprof_common.py: It may take few minutes, please be patient ...
+Sun 21 Jun 2026 16:10:00 [INFO] [MSVP] [716671] msprof_common.py: Analysis data in "/root/LHX/Magicore-final260620/ascblas/shell/prof_n_regular_single/nreg_m4096_n4608_k4096_s95_d16/PROF_000001_20260621160956732_AEDHRONEKOREHMMB/device_0" finished.
+Sun 21 Jun 2026 16:10:00 [INFO] [MSVP] [716671] msprof_export.py: All collected data will be exported, path is: /root/LHX/Magicore-final260620/ascblas/shell/prof_n_regular_single/nreg_m4096_n4608_k4096_s95_d16/PROF_000001_20260621160956732_AEDHRONEKOREHMMB/device_0.
+Sun 21 Jun 2026 16:10:00 [INFO] [MSVP] [716671] msprof_export.py: There is no timeline data to export for "/root/LHX/Magicore-final260620/ascblas/shell/prof_n_regular_single/nreg_m4096_n4608_k4096_s95_d16/PROF_000001_20260621160956732_AEDHRONEKOREHMMB/host"
+Sun 21 Jun 2026 16:10:01 [INFO] [MSVP] [716837] msprof_export.py: The data in "/root/LHX/Magicore-final260620/ascblas/shell/prof_n_regular_single/nreg_m4096_n4608_k4096_s95_d16/PROF_000001_20260621160956732_AEDHRONEKOREHMMB/host" has been analyzed. Parsing phase will be skipped.
+Sun 21 Jun 2026 16:10:01 [INFO] [MSVP] [716837] msprof_export.py: The data in "/root/LHX/Magicore-final260620/ascblas/shell/prof_n_regular_single/nreg_m4096_n4608_k4096_s95_d16/PROF_000001_20260621160956732_AEDHRONEKOREHMMB/device_0" has been analyzed. Parsing phase will be skipped.
+Sun 21 Jun 2026 16:10:01 [INFO] [MSVP] [716837] msprof_export.py: All collected data will be exported, path is: /root/LHX/Magicore-final260620/ascblas/shell/prof_n_regular_single/nreg_m4096_n4608_k4096_s95_d16/PROF_000001_20260621160956732_AEDHRONEKOREHMMB/device_0.
+Sun 21 Jun 2026 16:10:01 [INFO] [MSVP] [716837] msprof_export.py: There is no summary data to export for "/root/LHX/Magicore-final260620/ascblas/shell/prof_n_regular_single/nreg_m4096_n4608_k4096_s95_d16/PROF_000001_20260621160956732_AEDHRONEKOREHMMB/host"
+Sun 21 Jun 2026 16:10:01 [INFO] [MSVP] [716837] msprof_export.py: All collected data will be exported, path is: /root/LHX/Magicore-final260620/ascblas/shell/prof_n_regular_single/nreg_m4096_n4608_k4096_s95_d16/PROF_000001_20260621160956732_AEDHRONEKOREHMMB/device_0.
+Sun 21 Jun 2026 16:10:01 [INFO] [MSVP] [716837] msprof_common.py: Start exporting summary output_file.
+Sun 21 Jun 2026 16:10:01 [INFO] [MSVP] [716837] msprof_common.py: End exporting summary output_file.The file is stored in the /root/LHX/Magicore-final260620/ascblas/shell/prof_n_regular_single/nreg_m4096_n4608_k4096_s95_d16/PROF_000001_20260621160956732_AEDHRONEKOREHMMB/mindstudio_profiler_output path.
+[INFO] Export all data in PROF_000001_20260621160956732_AEDHRONEKOREHMMB done.
+[INFO] Start query data in PROF_000001_20260621160956732_AEDHRONEKOREHMMB.
+Job Info	Device ID	Dir Name	Collection Time           	Model ID	Iteration Number	Top Time Iteration	Rank ID	
+
+NA      	         	host    	2026-06-21 16:09:56.734955	N/A     	N/A             	N/A               	-1     	
+
+NA      	0        	device_0	2026-06-21 16:09:57.303901	N/A     	N/A             	N/A               	-1     	
+
+[INFO] Query all data in PROF_000001_20260621160956732_AEDHRONEKOREHMMB done.
+[INFO] Profiling finished.
+[INFO] Process profiling data complete. Data is saved in /root/LHX/Magicore-final260620/ascblas/shell/prof_n_regular_single/nreg_m4096_n4608_k4096_s95_d16/PROF_000001_20260621160956732_AEDHRONEKOREHMMB

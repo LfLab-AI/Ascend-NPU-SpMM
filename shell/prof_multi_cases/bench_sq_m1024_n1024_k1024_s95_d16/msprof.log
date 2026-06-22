@@ -1,0 +1,74 @@
+[WARNING] msprof is running as root. For security reasons, use a regular user account instead.
+[INFO] Start profiling...
+✅ 成功读取二进制文件: ../../data/vector_csr/A_data.bin (元素数: 52416)
+✅ 成功读取二进制文件: ../../data/vector_csr/A_cols.bin (元素数: 3276)
+✅ 成功读取二进制文件: ../../data/vector_csr/A_indptr.bin (元素数: 65)
+
+>>> A矩阵vector-CSR格式信息:
+向量块数量: 3276  向量维度d: 16
+行块数: 64  行指针长度: 65
+>>> 前16个元素（float）:
+-0.9632 -0.9020 -0.3121 1.1913 0.4551 -0.8063 0.5375 1.0251 
+-0.2737 0.6993 -0.1220 0.3622 0.4216 -0.4124 -0.3957 1.4941 
+
+Runtime tiling dispatch: kernel=spmm_kernel_aic8_ktile256, aic_n_batch=8, sparse_k_tile=256, max_vectors_per_row=67
+B-pack workspace: double-buffered ring, slots=2, n_batch=64, aic_n_batch=8, sparse_k_tile=256, total_b_pack_elems=7634944
+✅ 成功读取二进制文件: ../../data/B_dense.bin (元素数: 1048576)
+>>> 前16个元素（__fp16）:
+0.1334 1.1328 1.3877 -0.7607 -1.4854 1.2354 0.0864 -0.8408 
+-0.1984 -1.0723 -0.2593 -1.7881 0.6450 2.8984 0.9692 0.9722 
+
+Kernel start!
+Prof mode: launch spmm kernel 21 times for stable msprof statistics.
+
+===== Host Wall-Time Breakdown =====
+  acl init + handle        : 602.944 ms
+  host malloc/init         : 0.201 ms
+  read A vector CSR        : 0.453 ms
+  read B dense             : 4.224 ms
+  read C reference         : 0.000 ms
+  analyze sparse metadata  : 0.006 ms
+  pack B on host (once)    : 0.000 ms
+  debug host alloc/init    : 0.000 ms
+  device malloc            : 0.181 ms
+  H2D memcpy               : 0.198 ms
+  device memset            : 0.229 ms
+  kernel loop + sync       : 3.678 ms
+  kernel avg per launch    : 0.175 ms (21 launches)
+  D2H C memcpy             : 0.000 ms
+  D2H debug memcpy         : 0.000 ms
+  debug dump printing      : 0.000 ms
+  verification             : 0.000 ms
+  debug summary printing   : 0.000 ms
+  cleanup                  : 662.637 ms
+  total inside main        : 1274.774 ms
+====================================
+
+Kernel end!
+[INFO] Start export data in PROF_000001_20260621182849459_ANLMJDJCHBGGBHDA.
+Sun 21 Jun 2026 18:28:51 [INFO] [MSVP] [1158337] msprof_common.py: Start analyzing data in "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_sq_m1024_n1024_k1024_s95_d16/PROF_000001_20260621182849459_ANLMJDJCHBGGBHDA/host" ...
+Sun 21 Jun 2026 18:28:51 [INFO] [MSVP] [1158337] msprof_common.py: It may take few minutes, please be patient ...
+Sun 21 Jun 2026 18:28:51 [INFO] [MSVP] [1158337] msprof_common.py: Analysis data in "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_sq_m1024_n1024_k1024_s95_d16/PROF_000001_20260621182849459_ANLMJDJCHBGGBHDA/host" finished.
+Sun 21 Jun 2026 18:28:51 [INFO] [MSVP] [1158337] msprof_common.py: Start analyzing data in "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_sq_m1024_n1024_k1024_s95_d16/PROF_000001_20260621182849459_ANLMJDJCHBGGBHDA/device_0" ...
+Sun 21 Jun 2026 18:28:51 [INFO] [MSVP] [1158337] msprof_common.py: It may take few minutes, please be patient ...
+Sun 21 Jun 2026 18:28:52 [INFO] [MSVP] [1158337] msprof_common.py: Analysis data in "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_sq_m1024_n1024_k1024_s95_d16/PROF_000001_20260621182849459_ANLMJDJCHBGGBHDA/device_0" finished.
+Sun 21 Jun 2026 18:28:52 [INFO] [MSVP] [1158337] msprof_export.py: All collected data will be exported, path is: /root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_sq_m1024_n1024_k1024_s95_d16/PROF_000001_20260621182849459_ANLMJDJCHBGGBHDA/device_0.
+Sun 21 Jun 2026 18:28:52 [INFO] [MSVP] [1158337] msprof_export.py: There is no timeline data to export for "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_sq_m1024_n1024_k1024_s95_d16/PROF_000001_20260621182849459_ANLMJDJCHBGGBHDA/host"
+Sun 21 Jun 2026 18:28:52 [INFO] [MSVP] [1158502] msprof_export.py: The data in "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_sq_m1024_n1024_k1024_s95_d16/PROF_000001_20260621182849459_ANLMJDJCHBGGBHDA/host" has been analyzed. Parsing phase will be skipped.
+Sun 21 Jun 2026 18:28:52 [INFO] [MSVP] [1158502] msprof_export.py: The data in "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_sq_m1024_n1024_k1024_s95_d16/PROF_000001_20260621182849459_ANLMJDJCHBGGBHDA/device_0" has been analyzed. Parsing phase will be skipped.
+Sun 21 Jun 2026 18:28:52 [INFO] [MSVP] [1158502] msprof_export.py: All collected data will be exported, path is: /root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_sq_m1024_n1024_k1024_s95_d16/PROF_000001_20260621182849459_ANLMJDJCHBGGBHDA/device_0.
+Sun 21 Jun 2026 18:28:52 [INFO] [MSVP] [1158502] msprof_export.py: There is no summary data to export for "/root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_sq_m1024_n1024_k1024_s95_d16/PROF_000001_20260621182849459_ANLMJDJCHBGGBHDA/host"
+Sun 21 Jun 2026 18:28:52 [INFO] [MSVP] [1158502] msprof_export.py: All collected data will be exported, path is: /root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_sq_m1024_n1024_k1024_s95_d16/PROF_000001_20260621182849459_ANLMJDJCHBGGBHDA/device_0.
+Sun 21 Jun 2026 18:28:52 [INFO] [MSVP] [1158502] msprof_common.py: Start exporting summary output_file.
+Sun 21 Jun 2026 18:28:52 [INFO] [MSVP] [1158502] msprof_common.py: End exporting summary output_file.The file is stored in the /root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_sq_m1024_n1024_k1024_s95_d16/PROF_000001_20260621182849459_ANLMJDJCHBGGBHDA/mindstudio_profiler_output path.
+[INFO] Export all data in PROF_000001_20260621182849459_ANLMJDJCHBGGBHDA done.
+[INFO] Start query data in PROF_000001_20260621182849459_ANLMJDJCHBGGBHDA.
+Job Info	Device ID	Dir Name	Collection Time           	Model ID	Iteration Number	Top Time Iteration	Rank ID	
+
+NA      	         	host    	2026-06-21 18:28:49.461780	N/A     	N/A             	N/A               	-1     	
+
+NA      	0        	device_0	2026-06-21 18:28:50.032694	N/A     	N/A             	N/A               	-1     	
+
+[INFO] Query all data in PROF_000001_20260621182849459_ANLMJDJCHBGGBHDA done.
+[INFO] Profiling finished.
+[INFO] Process profiling data complete. Data is saved in /root/LHX/Magicore/ascblas/shell/prof_multi_cases/bench_sq_m1024_n1024_k1024_s95_d16/PROF_000001_20260621182849459_ANLMJDJCHBGGBHDA

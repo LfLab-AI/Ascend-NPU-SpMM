@@ -1,0 +1,180 @@
+{
+  "notes": [
+    "Diagnostic N-tail sweep for optimized partial B-pack path.",
+    "Fixed M=4096, K=4096, sparsity=95, d=16.",
+    "The important variable is tail_blocks = ceil(N/16) % 64; B_PACK_N_BATCH=64 means 1024-column super-batches."
+  ],
+  "cases": [
+    {
+      "name": "ntail_m4096_n3072_k4096_s95_d16",
+      "M": 4096,
+      "N": 3072,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-tail sweep: N=3072, num_n_blocks=192, tail_blocks=0"
+    },
+    {
+      "name": "ntail_m4096_n3200_k4096_s95_d16",
+      "M": 4096,
+      "N": 3200,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-tail sweep: N=3200, num_n_blocks=200, tail_blocks=8"
+    },
+    {
+      "name": "ntail_m4096_n3328_k4096_s95_d16",
+      "M": 4096,
+      "N": 3328,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-tail sweep: N=3328, num_n_blocks=208, tail_blocks=16"
+    },
+    {
+      "name": "ntail_m4096_n3456_k4096_s95_d16",
+      "M": 4096,
+      "N": 3456,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-tail sweep: N=3456, num_n_blocks=216, tail_blocks=24"
+    },
+    {
+      "name": "ntail_m4096_n3584_k4096_s95_d16",
+      "M": 4096,
+      "N": 3584,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-tail sweep: N=3584, num_n_blocks=224, tail_blocks=32"
+    },
+    {
+      "name": "ntail_m4096_n3712_k4096_s95_d16",
+      "M": 4096,
+      "N": 3712,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-tail sweep: N=3712, num_n_blocks=232, tail_blocks=40"
+    },
+    {
+      "name": "ntail_m4096_n3840_k4096_s95_d16",
+      "M": 4096,
+      "N": 3840,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-tail sweep: N=3840, num_n_blocks=240, tail_blocks=48"
+    },
+    {
+      "name": "ntail_m4096_n3904_k4096_s95_d16",
+      "M": 4096,
+      "N": 3904,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-tail sweep: N=3904, num_n_blocks=244, tail_blocks=52"
+    },
+    {
+      "name": "ntail_m4096_n3968_k4096_s95_d16",
+      "M": 4096,
+      "N": 3968,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-tail sweep: N=3968, num_n_blocks=248, tail_blocks=56"
+    },
+    {
+      "name": "ntail_m4096_n4000_k4096_s95_d16",
+      "M": 4096,
+      "N": 4000,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-tail sweep: N=4000, num_n_blocks=250, tail_blocks=58"
+    },
+    {
+      "name": "ntail_m4096_n4032_k4096_s95_d16",
+      "M": 4096,
+      "N": 4032,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-tail sweep: N=4032, num_n_blocks=252, tail_blocks=60"
+    },
+    {
+      "name": "ntail_m4096_n4080_k4096_s95_d16",
+      "M": 4096,
+      "N": 4080,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-tail sweep: N=4080, num_n_blocks=255, tail_blocks=63"
+    },
+    {
+      "name": "ntail_m4096_n4096_k4096_s95_d16",
+      "M": 4096,
+      "N": 4096,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-tail sweep: N=4096, num_n_blocks=256, tail_blocks=0"
+    },
+    {
+      "name": "ntail_m4096_n4112_k4096_s95_d16",
+      "M": 4096,
+      "N": 4112,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-tail sweep: N=4112, num_n_blocks=257, tail_blocks=1"
+    },
+    {
+      "name": "ntail_m4096_n4224_k4096_s95_d16",
+      "M": 4096,
+      "N": 4224,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-tail sweep: N=4224, num_n_blocks=264, tail_blocks=8"
+    },
+    {
+      "name": "ntail_m4096_n4352_k4096_s95_d16",
+      "M": 4096,
+      "N": 4352,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-tail sweep: N=4352, num_n_blocks=272, tail_blocks=16"
+    },
+    {
+      "name": "ntail_m4096_n4608_k4096_s95_d16",
+      "M": 4096,
+      "N": 4608,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-tail sweep: N=4608, num_n_blocks=288, tail_blocks=32"
+    },
+    {
+      "name": "ntail_m4096_n4864_k4096_s95_d16",
+      "M": 4096,
+      "N": 4864,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-tail sweep: N=4864, num_n_blocks=304, tail_blocks=48"
+    },
+    {
+      "name": "ntail_m4096_n5120_k4096_s95_d16",
+      "M": 4096,
+      "N": 5120,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-tail sweep: N=5120, num_n_blocks=320, tail_blocks=0"
+    }
+  ]
+}

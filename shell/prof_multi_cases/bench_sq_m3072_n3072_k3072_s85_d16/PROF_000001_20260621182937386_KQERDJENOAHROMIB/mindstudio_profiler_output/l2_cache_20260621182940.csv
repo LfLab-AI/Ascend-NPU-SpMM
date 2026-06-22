@@ -1,0 +1,21 @@
+Device_id,Stream Id,Task Id,Hit Rate,Victim Rate,Op Name
+0,47,1,N/A,0.058149,spmm_kernel_aic2_ktile1024
+0,47,2,N/A,0.058087,spmm_kernel_aic2_ktile1024
+0,47,3,N/A,0.058106,spmm_kernel_aic2_ktile1024
+0,47,4,N/A,0.058126,spmm_kernel_aic2_ktile1024
+0,47,5,N/A,0.058098,spmm_kernel_aic2_ktile1024
+0,47,6,N/A,0.058122,spmm_kernel_aic2_ktile1024
+0,47,7,N/A,0.058098,spmm_kernel_aic2_ktile1024
+0,47,8,N/A,0.058105,spmm_kernel_aic2_ktile1024
+0,47,9,N/A,0.058119,spmm_kernel_aic2_ktile1024
+0,47,10,N/A,0.058113,spmm_kernel_aic2_ktile1024
+0,47,11,N/A,0.058086,spmm_kernel_aic2_ktile1024
+0,47,12,N/A,0.058128,spmm_kernel_aic2_ktile1024
+0,47,13,N/A,0.058111,spmm_kernel_aic2_ktile1024
+0,47,14,N/A,0.058097,spmm_kernel_aic2_ktile1024
+0,47,15,N/A,0.058106,spmm_kernel_aic2_ktile1024
+0,47,16,N/A,0.058121,spmm_kernel_aic2_ktile1024
+0,47,17,N/A,0.058091,spmm_kernel_aic2_ktile1024
+0,47,18,N/A,0.058121,spmm_kernel_aic2_ktile1024
+0,47,19,N/A,0.058102,spmm_kernel_aic2_ktile1024
+0,47,20,N/A,0.058103,spmm_kernel_aic2_ktile1024

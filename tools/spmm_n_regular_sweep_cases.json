@@ -1,0 +1,254 @@
+{
+  "notes": [
+    "Diagnostic cases for testing N-dimension regularity after host-side N padding optimization.",
+    "All cases use M=4096, K=4096, sparsity=95, d=16 to isolate N behavior.",
+    "N_kernel16 in source_hint is ceil(N/16)*16, which is what the padded host path should pass to the kernel.",
+    "Compare non-16 cases such as N=4093 against their padded N_kernel16 neighbors, especially N=4096.",
+    "Generated datasets still store original N. Padding is performed by main.cpp at runtime."
+  ],
+  "cases": [
+    {
+      "name": "nreg_m4096_n1021_k4096_s95_d16",
+      "M": 4096,
+      "N": 1021,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-regularity sweep: non-16 N, host pads by 3 columns to N_kernel=1024; N_kernel16=1024, pad_cols=3, n_blocks=64, bpack_tail_blocks=0, aic_tail_cols_mod128=0"
+    },
+    {
+      "name": "nreg_m4096_n1024_k4096_s95_d16",
+      "M": 4096,
+      "N": 1024,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-regularity sweep: 1024-aligned full B-pack; N_kernel16=1024, pad_cols=0, n_blocks=64, bpack_tail_blocks=0, aic_tail_cols_mod128=0"
+    },
+    {
+      "name": "nreg_m4096_n1025_k4096_s95_d16",
+      "M": 4096,
+      "N": 1025,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-regularity sweep: non-16 N, host pads by 15 columns to N_kernel=1040; N_kernel16=1040, pad_cols=15, n_blocks=65, bpack_tail_blocks=1, aic_tail_cols_mod128=16"
+    },
+    {
+      "name": "nreg_m4096_n2047_k4096_s95_d16",
+      "M": 4096,
+      "N": 2047,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-regularity sweep: non-16 N, host pads by 1 columns to N_kernel=2048; N_kernel16=2048, pad_cols=1, n_blocks=128, bpack_tail_blocks=0, aic_tail_cols_mod128=0"
+    },
+    {
+      "name": "nreg_m4096_n2048_k4096_s95_d16",
+      "M": 4096,
+      "N": 2048,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-regularity sweep: 1024-aligned full B-pack; N_kernel16=2048, pad_cols=0, n_blocks=128, bpack_tail_blocks=0, aic_tail_cols_mod128=0"
+    },
+    {
+      "name": "nreg_m4096_n2049_k4096_s95_d16",
+      "M": 4096,
+      "N": 2049,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-regularity sweep: non-16 N, host pads by 15 columns to N_kernel=2064; N_kernel16=2064, pad_cols=15, n_blocks=129, bpack_tail_blocks=1, aic_tail_cols_mod128=16"
+    },
+    {
+      "name": "nreg_m4096_n3071_k4096_s95_d16",
+      "M": 4096,
+      "N": 3071,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-regularity sweep: non-16 N, host pads by 1 columns to N_kernel=3072; N_kernel16=3072, pad_cols=1, n_blocks=192, bpack_tail_blocks=0, aic_tail_cols_mod128=0"
+    },
+    {
+      "name": "nreg_m4096_n3072_k4096_s95_d16",
+      "M": 4096,
+      "N": 3072,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-regularity sweep: 1024-aligned full B-pack; N_kernel16=3072, pad_cols=0, n_blocks=192, bpack_tail_blocks=0, aic_tail_cols_mod128=0"
+    },
+    {
+      "name": "nreg_m4096_n3073_k4096_s95_d16",
+      "M": 4096,
+      "N": 3073,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-regularity sweep: non-16 N, host pads by 15 columns to N_kernel=3088; N_kernel16=3088, pad_cols=15, n_blocks=193, bpack_tail_blocks=1, aic_tail_cols_mod128=16"
+    },
+    {
+      "name": "nreg_m4096_n3840_k4096_s95_d16",
+      "M": 4096,
+      "N": 3840,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-regularity sweep: 128-aligned AIC batch, partial 1024 B-pack; N_kernel16=3840, pad_cols=0, n_blocks=240, bpack_tail_blocks=48, aic_tail_cols_mod128=0"
+    },
+    {
+      "name": "nreg_m4096_n3968_k4096_s95_d16",
+      "M": 4096,
+      "N": 3968,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-regularity sweep: 128-aligned AIC batch, partial 1024 B-pack; N_kernel16=3968, pad_cols=0, n_blocks=248, bpack_tail_blocks=56, aic_tail_cols_mod128=0"
+    },
+    {
+      "name": "nreg_m4096_n3997_k4096_s95_d16",
+      "M": 4096,
+      "N": 3997,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-regularity sweep: non-16 N, host pads by 3 columns to N_kernel=4000; N_kernel16=4000, pad_cols=3, n_blocks=250, bpack_tail_blocks=58, aic_tail_cols_mod128=32"
+    },
+    {
+      "name": "nreg_m4096_n4000_k4096_s95_d16",
+      "M": 4096,
+      "N": 4000,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-regularity sweep: 16-aligned only, partial AIC/B-pack tail; N_kernel16=4000, pad_cols=0, n_blocks=250, bpack_tail_blocks=58, aic_tail_cols_mod128=32"
+    },
+    {
+      "name": "nreg_m4096_n4080_k4096_s95_d16",
+      "M": 4096,
+      "N": 4080,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-regularity sweep: 16-aligned only, partial AIC/B-pack tail; N_kernel16=4080, pad_cols=0, n_blocks=255, bpack_tail_blocks=63, aic_tail_cols_mod128=112"
+    },
+    {
+      "name": "nreg_m4096_n4081_k4096_s95_d16",
+      "M": 4096,
+      "N": 4081,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-regularity sweep: non-16 N, host pads by 15 columns to N_kernel=4096; N_kernel16=4096, pad_cols=15, n_blocks=256, bpack_tail_blocks=0, aic_tail_cols_mod128=0"
+    },
+    {
+      "name": "nreg_m4096_n4088_k4096_s95_d16",
+      "M": 4096,
+      "N": 4088,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-regularity sweep: non-16 N, host pads by 8 columns to N_kernel=4096; N_kernel16=4096, pad_cols=8, n_blocks=256, bpack_tail_blocks=0, aic_tail_cols_mod128=0"
+    },
+    {
+      "name": "nreg_m4096_n4093_k4096_s95_d16",
+      "M": 4096,
+      "N": 4093,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-regularity sweep: non-16 N, host pads by 3 columns to N_kernel=4096; N_kernel16=4096, pad_cols=3, n_blocks=256, bpack_tail_blocks=0, aic_tail_cols_mod128=0"
+    },
+    {
+      "name": "nreg_m4096_n4095_k4096_s95_d16",
+      "M": 4096,
+      "N": 4095,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-regularity sweep: non-16 N, host pads by 1 columns to N_kernel=4096; N_kernel16=4096, pad_cols=1, n_blocks=256, bpack_tail_blocks=0, aic_tail_cols_mod128=0"
+    },
+    {
+      "name": "nreg_m4096_n4096_k4096_s95_d16",
+      "M": 4096,
+      "N": 4096,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-regularity sweep: 1024-aligned full B-pack; N_kernel16=4096, pad_cols=0, n_blocks=256, bpack_tail_blocks=0, aic_tail_cols_mod128=0"
+    },
+    {
+      "name": "nreg_m4096_n4097_k4096_s95_d16",
+      "M": 4096,
+      "N": 4097,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-regularity sweep: non-16 N, host pads by 15 columns to N_kernel=4112; N_kernel16=4112, pad_cols=15, n_blocks=257, bpack_tail_blocks=1, aic_tail_cols_mod128=16"
+    },
+    {
+      "name": "nreg_m4096_n4103_k4096_s95_d16",
+      "M": 4096,
+      "N": 4103,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-regularity sweep: non-16 N, host pads by 9 columns to N_kernel=4112; N_kernel16=4112, pad_cols=9, n_blocks=257, bpack_tail_blocks=1, aic_tail_cols_mod128=16"
+    },
+    {
+      "name": "nreg_m4096_n4111_k4096_s95_d16",
+      "M": 4096,
+      "N": 4111,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-regularity sweep: non-16 N, host pads by 1 columns to N_kernel=4112; N_kernel16=4112, pad_cols=1, n_blocks=257, bpack_tail_blocks=1, aic_tail_cols_mod128=16"
+    },
+    {
+      "name": "nreg_m4096_n4112_k4096_s95_d16",
+      "M": 4096,
+      "N": 4112,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-regularity sweep: 16-aligned only, partial AIC/B-pack tail; N_kernel16=4112, pad_cols=0, n_blocks=257, bpack_tail_blocks=1, aic_tail_cols_mod128=16"
+    },
+    {
+      "name": "nreg_m4096_n4224_k4096_s95_d16",
+      "M": 4096,
+      "N": 4224,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-regularity sweep: 128-aligned AIC batch, partial 1024 B-pack; N_kernel16=4224, pad_cols=0, n_blocks=264, bpack_tail_blocks=8, aic_tail_cols_mod128=0"
+    },
+    {
+      "name": "nreg_m4096_n4608_k4096_s95_d16",
+      "M": 4096,
+      "N": 4608,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-regularity sweep: 128-aligned AIC batch, partial 1024 B-pack; N_kernel16=4608, pad_cols=0, n_blocks=288, bpack_tail_blocks=32, aic_tail_cols_mod128=0"
+    },
+    {
+      "name": "nreg_m4096_n5119_k4096_s95_d16",
+      "M": 4096,
+      "N": 5119,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-regularity sweep: non-16 N, host pads by 1 columns to N_kernel=5120; N_kernel16=5120, pad_cols=1, n_blocks=320, bpack_tail_blocks=0, aic_tail_cols_mod128=0"
+    },
+    {
+      "name": "nreg_m4096_n5120_k4096_s95_d16",
+      "M": 4096,
+      "N": 5120,
+      "K": 4096,
+      "sparsity": 95,
+      "d": 16,
+      "source_hint": "N-regularity sweep: 1024-aligned full B-pack; N_kernel16=5120, pad_cols=0, n_blocks=320, bpack_tail_blocks=0, aic_tail_cols_mod128=0"
+    }
+  ]
+}

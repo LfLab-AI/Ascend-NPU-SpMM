@@ -1,0 +1,21 @@
+Device_id,Stream Id,Task Id,Hit Rate,Victim Rate,Op Name
+0,47,1,N/A,0.039431,spmm_kernel_aic8_ktile256
+0,47,2,N/A,0.039447,spmm_kernel_aic8_ktile256
+0,47,3,N/A,0.039595,spmm_kernel_aic8_ktile256
+0,47,4,N/A,0.039479,spmm_kernel_aic8_ktile256
+0,47,5,N/A,0.039522,spmm_kernel_aic8_ktile256
+0,47,6,N/A,0.039509,spmm_kernel_aic8_ktile256
+0,47,7,N/A,0.039539,spmm_kernel_aic8_ktile256
+0,47,8,N/A,0.039519,spmm_kernel_aic8_ktile256
+0,47,9,N/A,0.039505,spmm_kernel_aic8_ktile256
+0,47,10,N/A,0.039442,spmm_kernel_aic8_ktile256
+0,47,11,N/A,0.039376,spmm_kernel_aic8_ktile256
+0,47,12,N/A,0.03952,spmm_kernel_aic8_ktile256
+0,47,13,N/A,0.039569,spmm_kernel_aic8_ktile256
+0,47,14,N/A,0.039413,spmm_kernel_aic8_ktile256
+0,47,15,N/A,0.039563,spmm_kernel_aic8_ktile256
+0,47,16,N/A,0.039551,spmm_kernel_aic8_ktile256
+0,47,17,N/A,0.039411,spmm_kernel_aic8_ktile256
+0,47,18,N/A,0.039445,spmm_kernel_aic8_ktile256
+0,47,19,N/A,0.039552,spmm_kernel_aic8_ktile256
+0,47,20,N/A,0.039631,spmm_kernel_aic8_ktile256

@@ -1,0 +1,10 @@
+{
+  "case": "bench_rect_tfdown_m1024_n2048_k4096_s95_d16",
+  "mode": "full",
+  "M": 1024,
+  "N": 2048,
+  "K": 4096,
+  "sparsity": 95,
+  "d": 16,
+  "target": "/root/LHX/Magicore/ascblas/data"
+}

@@ -1,0 +1,2 @@
+shape: 4096 4096
+non_zero_count: 838848

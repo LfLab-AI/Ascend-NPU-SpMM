@@ -1,0 +1,1616 @@
+#ifdef __CCE_KT_TEST__
+#define __aicore__
+#else
+#define __aicore__ [aicore]
+#endif
+
+#include "kernel_operator.h"
+#include "ascblas_kernel_utils.h"
+
+#ifndef SPMM_KERNEL_NAME
+#define SPMM_KERNEL_NAME spmm_kernel
+#endif
+#define SPMM_CAT_IMPL(a, b) a##b
+#define SPMM_CAT(a, b) SPMM_CAT_IMPL(a, b)
+#define SPMM_AIC_SYMBOL(name) SPMM_CAT(name, _mix_aic)
+#define SPMM_AIV_SYMBOL(name) SPMM_CAT(name, _mix_aiv)
+
+using namespace fp16;
+
+#ifndef SPMM_B_PACK_N_BATCH
+#define SPMM_B_PACK_N_BATCH 64
+#endif
+
+#ifndef SPMM_AIC_N_BATCH
+#define SPMM_AIC_N_BATCH 8
+#endif
+
+#ifndef SPMM_B_PACK_PIPE_DEPTH
+#define SPMM_B_PACK_PIPE_DEPTH 2
+#endif
+
+#ifndef SPMM_PROFILE_AIC_ONLY
+#define SPMM_PROFILE_AIC_ONLY 0
+#endif
+
+#ifndef SPMM_PROFILE_AIV_ONLY
+#define SPMM_PROFILE_AIV_ONLY 0
+#endif
+
+#ifndef SPMM_DISABLE_PIPE_ALL_BARRIER
+#define SPMM_DISABLE_PIPE_ALL_BARRIER 0
+#endif
+
+
+#ifndef SPMM_SPARSE_K_TILE
+#define SPMM_SPARSE_K_TILE 256
+#endif
+
+#if SPMM_PROFILE_AIC_ONLY && SPMM_PROFILE_AIV_ONLY
+#error "SPMM_PROFILE_AIC_ONLY and SPMM_PROFILE_AIV_ONLY cannot both be enabled"
+#endif
+
+constexpr int64_t BLOCK_SIZE = 16;
+constexpr int64_t VECTOR_LEN = 16;
+
+/*
+ * 本版目标：
+ *   1. 保留上一版稳定的显式流水同步。
+ *   2. 保留 SPARSE_K_TILE，支持 4096 规模。
+ *   3. 调整 A/B 的 L1/L0 布局：
+ *
+ *      数学目标：
+ *          C_block[16 x n_actual] =
+ *              A_block[16 x k] * B_selected[k x n_actual]
+ *
+ *      Cube 实际计算：
+ *          C_block^T[n_actual x 16] =
+ *              B_selected^T[n_actual x k] * A_block^T[k x 16]
+ *
+ *      因此：
+ *          L0A = B_selected^T, shape = n_actual x k
+ *          L0B = A_block^T,    shape = k x 16
+ *
+ *   4. B workspace 固化为 row-major pack：
+ *          B_pack[i * B_PACK_BATCH_COLS + j] = B[col_i, n_base + j]
+ *
+ *      AIC 侧通过 source_stride 将该 row-major workspace 解释为
+ *      B_selected^T[n_actual x k] 的左矩阵来源，并固定使用
+ *      ND2nZ + load_cbuf_to_ca(transpose=true)。
+ *
+ *   5. A 使用 ND2nN + load_cbuf_to_cb(true)，贴近 GEMM 中原始 A 转为右矩阵 A^T 的路径。
+ */
+
+constexpr int DBG_SLOTS = 384;
+constexpr int32_t SPARSE_K_TILE = SPMM_SPARSE_K_TILE;
+constexpr int32_t B_PACK_SUB_TILE = 16;
+constexpr int32_t B_PACK_ASSUME_VALID_COLS = 1;
+/* Fusion experiment:
+ * AIV packs one large super N-batch: up to 64 n_blocks = 1024 columns.
+ * Partial super-batches are also packed as one grouped panel instead of
+ * falling back to per-16-column packing. AIC still computes in smaller
+ * batches: 8 n_blocks = 128 columns.
+ * The ready/ack protocol remains super-batch based, so we only use two
+ * workspace slots and two ready/ack flag ids. Within one ready region, AIC
+ * consumes eight 128-column compute batches from the packed 1024-column slot.
+ */
+constexpr int32_t B_PACK_N_BATCH = SPMM_B_PACK_N_BATCH;  // AIV pack super-batch, in 16-column n_blocks
+constexpr int32_t AIC_N_BATCH = SPMM_AIC_N_BATCH;      // AIC compute batch, in 16-column n_blocks
+constexpr int32_t B_PACK_PIPE_DEPTH = SPMM_B_PACK_PIPE_DEPTH;  // GM workspace ring slots
+static_assert(B_PACK_N_BATCH > 0, "SPMM_B_PACK_N_BATCH must be positive");
+static_assert(AIC_N_BATCH > 0, "SPMM_AIC_N_BATCH must be positive");
+static_assert(B_PACK_PIPE_DEPTH > 0 && B_PACK_PIPE_DEPTH <= 8,
+              "SPMM_B_PACK_PIPE_DEPTH must be in [1, 8]");
+static_assert(B_PACK_N_BATCH >= AIC_N_BATCH,
+              "SPMM_B_PACK_N_BATCH must be >= SPMM_AIC_N_BATCH");
+static_assert(B_PACK_N_BATCH % AIC_N_BATCH == 0,
+              "SPMM_B_PACK_N_BATCH must be divisible by SPMM_AIC_N_BATCH");
+constexpr int32_t B_PACK_BATCH_COLS = B_PACK_N_BATCH * BLOCK_SIZE;
+constexpr int32_t AIC_BATCH_COLS = AIC_N_BATCH * BLOCK_SIZE;
+constexpr int32_t L0A_CAPACITY_HALF_ELEMS =
+    64 * 1024 / sizeof(__fp16);
+constexpr int32_t L1_A_REGION_HALF_ELEMS =
+    64 * 1024 / sizeof(__fp16);
+static_assert(SPARSE_K_TILE > 0 && SPARSE_K_TILE % BLOCK_SIZE == 0,
+              "SPMM_SPARSE_K_TILE must be a positive multiple of 16");
+static_assert(AIC_BATCH_COLS * SPARSE_K_TILE <= L0A_CAPACITY_HALF_ELEMS,
+              "AIC N batch x sparse K tile exceeds the 64KB L0A capacity");
+static_assert(AIC_BATCH_COLS * SPARSE_K_TILE <= L1_A_REGION_HALF_ELEMS,
+              "AIC N batch x sparse K tile overlaps the L1_B partition");
+constexpr int32_t SYNC_B_PACK_READY_BASE = 0;
+constexpr int32_t SYNC_B_PACK_ACK_BASE = 8;
+
+__aicore__ __inline__ void spmm_pipe_all_barrier()
+{
+#if SPMM_DISABLE_PIPE_ALL_BARRIER
+    return;
+#else
+    pipe_barrier(PIPE_ALL);
+#endif
+}
+
+__aicore__ __inline__ int32_t b_pack_ready_flag(int32_t n_block_idx)
+{
+    return SYNC_B_PACK_READY_BASE + (n_block_idx % B_PACK_PIPE_DEPTH);
+}
+
+__aicore__ __inline__ int32_t b_pack_ack_flag(int32_t n_block_idx)
+{
+    return SYNC_B_PACK_ACK_BASE + (n_block_idx % B_PACK_PIPE_DEPTH);
+}
+
+#define DBG_CORE_ID          0
+#define DBG_CORE_CNT         1
+#define DBG_M                2
+#define DBG_N                3
+#define DBG_K                4
+#define DBG_NUM_ROW_BLOCKS   5
+#define DBG_ROW_LOOP         6
+#define DBG_START_VEC        7
+#define DBG_END_VEC          8
+#define DBG_NUM_VECTORS      9
+#define DBG_MAX_VEC_PER_ROW  10
+#define DBG_N_BLOCK          11
+#define DBG_N_ACTUAL         12
+#define DBG_FIRST_COL        13
+#define DBG_SECOND_COL       14
+#define DBG_STATUS           15
+#define DBG_A_RAW_0          16
+#define DBG_A_RAW_1          17
+#define DBG_B_RAW_0          18
+#define DBG_B_RAW_1          19
+#define DBG_BC_RAW_0         20
+#define DBG_BC_RAW_1         21
+#define DBG_MAD_M            22
+#define DBG_MAD_K            23
+#define DBG_MAD_N            24
+#define DBG_C_OFFSET         25
+#define DBG_K_FRACS          26
+#define DBG_L1_LOAD_REPEAT   27
+#define DBG_C_RAW_0          28
+#define DBG_ERR              29
+#define DBG_PHASE            30
+#define DBG_RESERVED         31
+
+#define DBG_ROW_OFF_START    32
+#define DBG_COL_START        48
+
+#define DBG_A_DUMP_START     64
+#define DBG_BC_DUMP_START    128
+#define DBG_L1A_DUMP_START   192
+#define DBG_L1B_DUMP_START   256
+
+#define DBG_REF_C00          320
+#define DBG_REF_C10          321
+#define DBG_REF_C01          322
+#define DBG_REF_C11          323
+#define DBG_B_TILE_TOTAL     324
+#define DBG_B_TILE_CONTIG    325
+#define DBG_B_TILE_NEAR      326
+#define DBG_B_TILE_MAX_STEP  327
+#define DBG_B_TILE_SUM_STEP  328
+#define DBG_B_TILE_VALID     329
+
+#define ST_ENTER             0x00000001
+#define ST_ROW_OK            0x00000002
+#define ST_A_GM_OK           0x00000004
+#define ST_A_L1_OK           0x00000008
+#define ST_B_GATHER_OK       0x00000010
+#define ST_B_L1_OK           0x00000020
+#define ST_L0_OK             0x00000040
+#define ST_MAD_OK            0x00000080
+#define ST_C_GM_OK           0x00000100
+#define ST_DONE              0x00000200
+
+#define ERR_BAD_ROW_PTR      0x00010000
+#define ERR_VEC_TOO_LARGE    0x00020000
+#define ERR_BAD_COL          0x00040000
+#define ERR_K_FRACS_TOO_BIG  0x00080000
+#define ERR_EMPTY_ROW        0x00100000
+#define ERR_BAD_N_ACTUAL     0x00200000
+
+__aicore__ __inline__ int32_t ceil_div_16_i32(int32_t x)
+{
+    return (x + 15) / 16;
+}
+
+__aicore__ __inline__ int32_t fp16_to_i1000(__fp16 v)
+{
+    return (int32_t)((float)v * 1000.0f);
+}
+
+__aicore__ __inline__ int32_t f32_to_i1000(float v)
+{
+    return (int32_t)(v * 1000.0f);
+}
+
+__aicore__ __inline__ int32_t abs_i32(int32_t x)
+{
+    return x < 0 ? -x : x;
+}
+
+__aicore__ __inline__ void collect_b_tile_index_stats(
+    __gm__ int *row_cols,
+    int32_t vec_base,
+    int32_t k_tile_actual,
+    int32_t K,
+    int32_t &valid_cols,
+    int32_t &is_contig,
+    int32_t &is_near_contig,
+    int32_t &max_abs_step,
+    int32_t &sum_abs_step)
+{
+    const int32_t near_step_limit = 4;
+
+    valid_cols = 1;
+    is_contig = 1;
+    is_near_contig = 1;
+    max_abs_step = 0;
+    sum_abs_step = 0;
+
+    if (k_tile_actual <= 0) {
+        valid_cols = 0;
+        is_contig = 0;
+        is_near_contig = 0;
+        return;
+    }
+
+    int32_t first_col = row_cols[vec_base];
+    if (first_col < 0 || first_col >= K) {
+        valid_cols = 0;
+        is_contig = 0;
+        is_near_contig = 0;
+    }
+
+    int32_t prev_col = first_col;
+    for (int32_t i = 1; i < k_tile_actual; ++i) {
+        int32_t col = row_cols[vec_base + i];
+        if (col < 0 || col >= K) {
+            valid_cols = 0;
+            is_contig = 0;
+            is_near_contig = 0;
+            continue;
+        }
+
+        if (col != first_col + i) {
+            is_contig = 0;
+        }
+
+        int32_t step = abs_i32(col - prev_col);
+        sum_abs_step += step;
+        if (step > max_abs_step) {
+            max_abs_step = step;
+        }
+        if (step > near_step_limit) {
+            is_near_contig = 0;
+        }
+
+        prev_col = col;
+    }
+
+    if (!valid_cols) {
+        is_contig = 0;
+        is_near_contig = 0;
+    }
+}
+
+__aicore__ __inline__ void copy_b_pack_row_major_to_l1(
+    __cbuf__ __fp16 *L1_A,
+    __gm__ __fp16 *B_pack_tile,
+    int32_t source_stride,
+    int32_t k_tile_round,
+    int32_t k_tile_actual,
+    int32_t n_actual)
+{
+    (void)k_tile_round;
+    int32_t n_round = ceil_div_16_i32(n_actual) * 16;
+
+    /*
+     * Row-major workspace:
+     *   B_pack_tile[i * source_stride + j] = B[col_i, n_base + j]
+     *
+     * Viewed as a column-major matrix, each sparse vector i is one column
+     * of an n_actual x k_tile_actual left matrix. This avoids AIV-side
+     * vtranspose; the transpose is represented by the source stride.
+     */
+    ascblas_matrix_gm2cbuf_ND2nZ(
+        L1_A,
+        B_pack_tile,
+        n_round,
+        k_tile_round,
+        n_actual,
+        k_tile_actual,
+        source_stride
+    );
+}
+
+#if __DAV_C220_CUBE__
+extern "C" __global__ __aicore__ void SPMM_AIC_SYMBOL(SPMM_KERNEL_NAME)(
+    int M,
+    int N,
+    int K,
+    int vec_length,
+    __gm__ __fp16 *values,
+    __gm__ int *col_indices,
+    __gm__ int *row_offsets,
+    __gm__ __fp16 *B,
+    __gm__ float *C,
+    __gm__ void *ffts_addr,
+    __gm__ __fp16 *workspace1,
+    __gm__ int64_t *b_pack_offsets,
+    int64_t total_b_pack_elems,
+    int64_t max_vectors_per_row,
+    int64_t num_n_blocks,
+    int64_t ldc,
+    __gm__ int32_t *debug_out,
+    int32_t debug_enable
+)
+{
+    (void)total_b_pack_elems;
+
+    set_ffts_base_addr((uint64_t)ffts_addr);
+
+    set_padding(0);
+    set_atomic_none();
+    set_nd_para(0x1);
+
+    int32_t core_id = get_block_idx();
+    int32_t core_cnt = get_block_num();
+    bool debug_enabled = (debug_enable != 0);
+
+    __gm__ int32_t *my_dbg = debug_out;
+
+    if (debug_enabled) {
+        my_dbg = debug_out + core_id * DBG_SLOTS;
+
+        for (int i = 0; i < DBG_SLOTS; ++i) {
+            my_dbg[i] = 0;
+        }
+    }
+
+    int32_t status = ST_ENTER;
+    int32_t err = 0;
+
+    if (debug_enabled) {
+        my_dbg[DBG_CORE_ID] = core_id;
+        my_dbg[DBG_CORE_CNT] = core_cnt;
+        my_dbg[DBG_M] = M;
+        my_dbg[DBG_N] = N;
+        my_dbg[DBG_K] = K;
+        my_dbg[DBG_MAX_VEC_PER_ROW] = (int32_t)max_vectors_per_row;
+        my_dbg[DBG_RESERVED] = SPARSE_K_TILE;
+        my_dbg[DBG_STATUS] = status;
+    }
+
+    /*
+     * L1 分区。
+     *
+     * L1_A: B_selected^T 左矩阵来源，从 0 开始。
+     * L1_B: A_block^T 右矩阵的临时 staging 区，仍使用原稳定版的 64KB。
+     *
+     * 新 fast path 不再要求 A 在 L1_B 中跨 n-batch 常驻：A 只在 row 开始时
+     * 通过 L1_B staging 一次性加载到 L0B，后续 n-batch 直接复用 L0B。
+     * 因此即使后续 B 的 L1_A footprint 覆盖 64KB 之后的 CBUF 区域，也不会
+     * 污染 A。
+     */
+    __cbuf__ __fp16 *L1_A = (__cbuf__ __fp16 *)(uintptr_t)0;
+    __cbuf__ __fp16 *L1_B = (__cbuf__ __fp16 *)(uintptr_t)(64 * 1024);
+
+    __ca__ __fp16 *L0A = (__ca__ __fp16 *)(uintptr_t)0;
+    __cb__ __fp16 *L0B = (__cb__ __fp16 *)(uintptr_t)0;
+    __cc__ float  *L0C = (__cc__ float  *)(uintptr_t)0;
+
+    /*
+     * workspace1 是 AIV -> AIC 的 GM 双缓冲 ring。
+     * Host 为每个 row_block 分配两个 slot，每个 slot 容纳一个 n-batch：
+     *
+     *   slot_elems = row_k_round * (B_PACK_N_BATCH * BLOCK_SIZE)
+     *   slot       = n_batch_idx % B_PACK_PIPE_DEPTH   // B_PACK_PIPE_DEPTH = 2
+     *   memory     = b_pack_offsets[row] + slot * slot_elems
+     *
+     * slot 内部固定为 row-major B pack：
+     *   B_pack[i * B_PACK_BATCH_COLS + j] = B[col_i, n_base + j]
+     *
+     * AIV 写当前 slot 时，AIC 只读上一批 ready 的另一个 slot；
+     * AIV 在复用 slot 前等待对应 ack，避免覆盖 AIC 尚未消费的数据。
+     */
+    __gm__ __fp16 *B_pack = workspace1;
+
+    int64_t num_row_blocks_i64 = ((int64_t)M + vec_length - 1) / vec_length;
+    int32_t num_row_blocks = (int32_t)num_row_blocks_i64;
+    int32_t num_n_blocks_i32 = (int32_t)num_n_blocks;
+    if (debug_enabled) {
+        my_dbg[DBG_NUM_ROW_BLOCKS] = num_row_blocks;
+    }
+
+    if (debug_enabled && core_id == 0) {
+        int32_t ro_dump = num_row_blocks + 1;
+        if (ro_dump > 16) {
+            ro_dump = 16;
+        }
+
+        for (int i = 0; i < ro_dump; ++i) {
+            my_dbg[DBG_ROW_OFF_START + i] = row_offsets[i];
+        }
+    }
+
+    bool detail_dumped = false;
+
+    for (int64_t m_block_idx = core_id;
+         m_block_idx < num_row_blocks_i64;
+         m_block_idx += core_cnt) {
+
+        int32_t row_block = (int32_t)m_block_idx;
+
+        int32_t start_vec = row_offsets[row_block];
+        int32_t end_vec = row_offsets[row_block + 1];
+        int32_t num_vectors = end_vec - start_vec;
+
+        bool trace_row = debug_enabled && (core_id == 0 && row_block == 0);
+
+        if (trace_row) {
+            my_dbg[DBG_ROW_LOOP] = row_block;
+            my_dbg[DBG_START_VEC] = start_vec;
+            my_dbg[DBG_END_VEC] = end_vec;
+            my_dbg[DBG_NUM_VECTORS] = num_vectors;
+            my_dbg[DBG_PHASE] = 1;
+        }
+
+        if (start_vec < 0 || end_vec < start_vec) {
+            err |= ERR_BAD_ROW_PTR;
+            if (debug_enabled) {
+                my_dbg[DBG_ERR] = err;
+                my_dbg[DBG_STATUS] = status | err;
+            }
+            continue;
+        }
+
+        if (num_vectors == 0) {
+            err |= ERR_EMPTY_ROW;
+            if (debug_enabled) {
+                my_dbg[DBG_ERR] = err;
+                my_dbg[DBG_STATUS] = status | err;
+            }
+            continue;
+        }
+
+        if (num_vectors > (int32_t)max_vectors_per_row) {
+            err |= ERR_VEC_TOO_LARGE;
+            if (debug_enabled) {
+                my_dbg[DBG_ERR] = err;
+                my_dbg[DBG_STATUS] = status | err;
+            }
+            continue;
+        }
+
+        int32_t total_k_fracs = ceil_div_16_i32(num_vectors);
+        int32_t row_k_round = total_k_fracs * 16;
+
+        if (trace_row) {
+            my_dbg[DBG_K_FRACS] = total_k_fracs;
+            my_dbg[DBG_L1_LOAD_REPEAT] = 0;
+        }
+
+        status |= ST_ROW_OK;
+        if (debug_enabled) {
+            my_dbg[DBG_STATUS] = status | err;
+        }
+
+        __gm__ __fp16 *A_src = values + start_vec * VECTOR_LEN;
+        __gm__ int *row_cols = col_indices + start_vec;
+
+#if SPMM_PROFILE_AIV_ONLY
+        int32_t profile_n_batches =
+            (num_n_blocks_i32 + B_PACK_N_BATCH - 1) / B_PACK_N_BATCH;
+        for (int32_t n_batch_idx = 0;
+             n_batch_idx < profile_n_batches;
+             ++n_batch_idx) {
+            wait_flag_dev(b_pack_ready_flag(n_batch_idx));
+            ffts_cross_core_sync(
+                PIPE_MTE2,
+                GET_FFST_MSG(2, b_pack_ack_flag(n_batch_idx)));
+        }
+        continue;
+#endif
+
+        /*
+         * AIC fast path for the 4096/95% case: A 常驻 L0B。
+         *
+         * 上一轮 A 常驻 L1_B 的版本能显著提速，但 verify 错误集中在靠后的
+         * N batch。根因更像是 CBUF/L1_A footprint 覆盖了 L1_B，而不是 GM
+         * 双缓冲协议错误。这里换一个角度：A 只用 L1_B 做一次 staging，随后
+         * 立即 load 到 L0B；后续所有 n-batch 复用 L0B 中的 A_block^T。
+         *
+         * 这样不会依赖 L1_B 在整个 row_block 生命周期内保持不变，也不需要把
+         * L1_B 放到更高地址。L1_A 后续可以自由覆盖 CBUF，A 已经在独立的
+         * L0B 空间中。
+         */
+        bool single_k_tile_fast_path =
+            (num_vectors > 0) &&
+            (num_vectors <= SPARSE_K_TILE) &&
+            (total_k_fracs > 0) &&
+            (total_k_fracs <= 255);
+
+        if (single_k_tile_fast_path) {
+            ascblas_matrix_gm2cbuf_ND2nN(
+                L1_B,
+                A_src,
+                VECTOR_LEN,
+                row_k_round,
+                VECTOR_LEN,
+                num_vectors,
+                VECTOR_LEN
+            );
+
+            set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+            wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+
+            load_cbuf_to_cb(
+                L0B,
+                L1_B,
+                0,
+                (uint8_t)total_k_fracs,
+                1,
+                0,
+                0,
+                true,
+                inc
+            );
+
+            set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+            wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+
+            status |= ST_A_L1_OK;
+            status |= ST_L0_OK;
+            if (debug_enabled) {
+                my_dbg[DBG_STATUS] = status | err;
+            }
+        }
+
+        if (trace_row) {
+            my_dbg[DBG_A_RAW_0] = fp16_to_i1000(A_src[0]);
+            my_dbg[DBG_A_RAW_1] = fp16_to_i1000(A_src[1]);
+        }
+
+        if (debug_enabled && core_id == 0 && row_block == 0) {
+            __gm__ __fp16 *dbg_a =
+                (__gm__ __fp16 *)(my_dbg + DBG_A_DUMP_START);
+
+            int32_t a_dump_elems = num_vectors * VECTOR_LEN;
+            if (a_dump_elems > 128) {
+                a_dump_elems = 128;
+            }
+
+            for (int i = 0; i < 128; ++i) {
+                dbg_a[i] = (i < a_dump_elems) ? A_src[i] : (__fp16)0.0f;
+            }
+
+            int32_t col_dump = num_vectors;
+            if (col_dump > 16) {
+                col_dump = 16;
+            }
+
+            for (int i = 0; i < col_dump; ++i) {
+                my_dbg[DBG_COL_START + i] = row_cols[i];
+            }
+        }
+
+        status |= ST_A_GM_OK;
+        if (debug_enabled) {
+            my_dbg[DBG_STATUS] = status | err;
+        }
+
+        if (trace_row) {
+            my_dbg[DBG_PHASE] = 2;
+        }
+
+        for (int32_t n_block_idx = 0;
+             n_block_idx < num_n_blocks_i32;
+             n_block_idx += AIC_N_BATCH) {
+
+            int32_t n_base = n_block_idx * BLOCK_SIZE;
+            int64_t n_base_i64 = (int64_t)n_base;
+
+            int32_t batch_n_actual = N - n_base;
+            int32_t max_batch_n = AIC_N_BATCH * BLOCK_SIZE;
+            if (batch_n_actual > max_batch_n) {
+                batch_n_actual = max_batch_n;
+            }
+            int32_t batch_n_fracs = ceil_div_16_i32(batch_n_actual);
+            int32_t batch_n_blocks = batch_n_fracs;
+            int32_t n_batch_idx = n_block_idx / B_PACK_N_BATCH;
+            int32_t pack_n_block_base = n_batch_idx * B_PACK_N_BATCH;
+            int32_t local_n_block = n_block_idx - pack_n_block_base;
+            bool first_compute_in_pack = (local_n_block == 0);
+            bool last_compute_in_pack =
+                (n_block_idx + AIC_N_BATCH >= num_n_blocks_i32) ||
+                (local_n_block + AIC_N_BATCH >= B_PACK_N_BATCH);
+
+            bool trace_block = debug_enabled &&
+                (core_id == 0 && row_block == 0 && n_block_idx == 0);
+
+            bool write_detail = trace_block;
+
+            if (write_detail) {
+                my_dbg[DBG_N_BLOCK] = n_block_idx;
+                my_dbg[DBG_N_ACTUAL] = batch_n_actual;
+                my_dbg[DBG_MAD_M] = batch_n_actual;
+                my_dbg[DBG_MAD_K] = num_vectors;
+                my_dbg[DBG_MAD_N] = VECTOR_LEN;
+                my_dbg[DBG_PHASE] = 3;
+            }
+
+            if (batch_n_actual <= 0 || batch_n_actual > max_batch_n) {
+                err |= ERR_BAD_N_ACTUAL;
+                if (debug_enabled) {
+                    my_dbg[DBG_ERR] = err;
+                    my_dbg[DBG_STATUS] = status | err;
+                }
+                continue;
+            }
+
+            if (first_compute_in_pack) {
+                wait_flag_dev(b_pack_ready_flag(n_batch_idx));
+            }
+
+            /*
+             * trace block 的 CPU-style reference。
+             */
+            if (trace_block) {
+                float ref_c00 = 0.0f;
+                float ref_c10 = 0.0f;
+                float ref_c01 = 0.0f;
+                float ref_c11 = 0.0f;
+
+                for (int32_t i = 0; i < num_vectors; ++i) {
+                    int32_t col = row_cols[i];
+
+                    if (col >= 0 && col < K) {
+                        float a0 = (float)A_src[i * VECTOR_LEN + 0];
+                        float a1 = (float)A_src[i * VECTOR_LEN + 1];
+                        __gm__ __fp16 *b_ref_src =
+                            B + (int64_t)col * (int64_t)N + n_base_i64;
+
+                        float b0 = (float)b_ref_src[0];
+                        float b1 = 0.0f;
+
+                        if (batch_n_actual > 1) {
+                            b1 = (float)b_ref_src[1];
+                        }
+
+                        ref_c00 += a0 * b0;
+                        ref_c10 += a1 * b0;
+                        ref_c01 += a0 * b1;
+                        ref_c11 += a1 * b1;
+                    }
+                }
+
+                my_dbg[DBG_REF_C00] = f32_to_i1000(ref_c00);
+                my_dbg[DBG_REF_C10] = f32_to_i1000(ref_c10);
+                my_dbg[DBG_REF_C01] = f32_to_i1000(ref_c01);
+                my_dbg[DBG_REF_C11] = f32_to_i1000(ref_c11);
+            }
+
+            if (single_k_tile_fast_path) {
+                int32_t k_tile_actual = num_vectors;
+                int32_t k_tile_round = row_k_round;
+                int32_t k_tile_fracs = total_k_fracs;
+
+                int64_t row_pack_offset = b_pack_offsets[row_block];
+                int32_t pipe_slot = n_batch_idx % B_PACK_PIPE_DEPTH;
+                __gm__ __fp16 *B_contig =
+                    B_pack +
+                    row_pack_offset +
+                    (int64_t)pipe_slot * (int64_t)row_k_round * B_PACK_BATCH_COLS +
+                    (int64_t)local_n_block * BLOCK_SIZE;
+
+                if (write_detail) {
+                    my_dbg[DBG_L1_LOAD_REPEAT] = k_tile_fracs;
+                    my_dbg[DBG_PHASE] = 4;
+                    if (num_vectors > 0) {
+                        my_dbg[DBG_FIRST_COL] = row_cols[0];
+                    }
+                    if (num_vectors > 1) {
+                        my_dbg[DBG_SECOND_COL] = row_cols[1];
+                    }
+                    my_dbg[DBG_B_RAW_0] = fp16_to_i1000(B_contig[0]);
+                    my_dbg[DBG_B_RAW_1] = (batch_n_actual > 1)
+                        ? fp16_to_i1000(B_contig[1])
+                        : 0;
+                    my_dbg[DBG_BC_RAW_0] = my_dbg[DBG_B_RAW_0];
+                    my_dbg[DBG_BC_RAW_1] = my_dbg[DBG_B_RAW_1];
+                }
+
+                /*
+                 * The 4096/95% case usually takes this L0B-resident fast path,
+                 * so keep the first-tile dumps here as well as in the generic
+                 * path. DBG_BC_DUMP_START is sampled as logical Kx16 from the
+                 * workspace, while DBG_L1A_DUMP_START is the same Kx16 slice
+                 * loaded directly from original B for comparison.
+                 */
+                if (trace_block && !detail_dumped) {
+                    __gm__ __fp16 *dbg_b_mem =
+                        (__gm__ __fp16 *)(my_dbg + DBG_BC_DUMP_START);
+                    __gm__ __fp16 *dbg_b_logical =
+                        (__gm__ __fp16 *)(my_dbg + DBG_L1A_DUMP_START);
+                    __gm__ __fp16 *dbg_a_logical =
+                        (__gm__ __fp16 *)(my_dbg + DBG_L1B_DUMP_START);
+
+                    for (int t = 0; t < 128; ++t) {
+                        dbg_b_mem[t] = (__fp16)0.0f;
+                        dbg_b_logical[t] = (__fp16)0.0f;
+                        dbg_a_logical[t] = (__fp16)0.0f;
+                    }
+
+                    int32_t dump_rows = k_tile_actual;
+                    if (dump_rows > 8) {
+                        dump_rows = 8;
+                    }
+                    if (dump_rows * BLOCK_SIZE > 128) {
+                        dump_rows = 128 / BLOCK_SIZE;
+                    }
+
+                    int32_t dump_cols = batch_n_actual;
+                    if (dump_cols > BLOCK_SIZE) {
+                        dump_cols = BLOCK_SIZE;
+                    }
+
+                    for (int32_t r = 0; r < dump_rows; ++r) {
+                        int32_t dump_col = row_cols[r];
+
+                        for (int32_t j = 0; j < dump_cols; ++j) {
+                            dbg_b_mem[r * BLOCK_SIZE + j] =
+                                B_contig[(int64_t)r * B_PACK_BATCH_COLS + j];
+                        }
+
+                        if (dump_col >= 0 && dump_col < K) {
+                            __gm__ __fp16 *b_src =
+                                B + (int64_t)dump_col * (int64_t)N + n_base_i64;
+
+                            for (int32_t j = 0; j < dump_cols; ++j) {
+                                dbg_b_logical[r * BLOCK_SIZE + j] = b_src[j];
+                            }
+                        }
+                    }
+
+                    int32_t a_dump_elems = k_tile_actual * VECTOR_LEN;
+                    if (a_dump_elems > 128) {
+                        a_dump_elems = 128;
+                    }
+
+                    for (int32_t t = 0; t < a_dump_elems; ++t) {
+                        dbg_a_logical[t] = A_src[t];
+                    }
+
+                    detail_dumped = true;
+                }
+
+                spmm_pipe_all_barrier();
+
+                copy_b_pack_row_major_to_l1(
+                    L1_A,
+                    B_contig,
+                    B_PACK_BATCH_COLS,
+                    k_tile_round,
+                    k_tile_actual,
+                    batch_n_actual
+                );
+
+                /*
+                 * Early ACK remains valid in the L0B-resident fast path:
+                 * after this MTE2 B_pack read completes, this n-batch no
+                 * longer touches the GM workspace slot.
+                 */
+                if (last_compute_in_pack) {
+                    ffts_cross_core_sync(
+                        PIPE_MTE2,
+                        GET_FFST_MSG(2, b_pack_ack_flag(n_batch_idx)));
+                }
+
+                set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+                wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+
+                status |= ST_B_GATHER_OK;
+                status |= ST_B_L1_OK;
+                if (debug_enabled) {
+                    my_dbg[DBG_STATUS] = status | err;
+                }
+
+                for (int32_t batch_n_frac = 0;
+                     batch_n_frac < batch_n_fracs;
+                     ++batch_n_frac) {
+                    load_cbuf_to_ca(
+                        L0A + CUBE_MATRIX_SIZE * k_tile_fracs * batch_n_frac,
+                        L1_A,
+                        (uint16_t)(batch_n_frac * k_tile_fracs),
+                        (uint8_t)k_tile_fracs,
+                        1,
+                        0,
+                        0,
+                        true,
+                        inc
+                    );
+                }
+
+                /*
+                 * A_block^T 已经在 row_block 开始时常驻 L0B。
+                 * 这里每个 n-batch 只需要把新的 B_selected^T 加载到 L0A。
+                 */
+                set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+                wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+
+                status |= ST_L0_OK;
+                if (debug_enabled) {
+                    my_dbg[DBG_STATUS] = status | err;
+                }
+
+                if (write_detail) {
+                    my_dbg[DBG_PHASE] = 6;
+                }
+
+                mad(
+                    L0C,
+                    L0A,
+                    L0B,
+                    (uint16_t)batch_n_actual,
+                    (uint16_t)k_tile_actual,
+                    (uint16_t)VECTOR_LEN,
+                    0,
+                    1,
+                    0,
+                    false,
+                    false,
+                    false,
+                    true
+                );
+
+                set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+                wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+
+                status |= ST_MAD_OK;
+                if (debug_enabled) {
+                    my_dbg[DBG_STATUS] = status | err;
+                }
+
+                if (write_detail) {
+                    my_dbg[DBG_PHASE] = 7;
+                }
+
+                int64_t c_offset =
+                    m_block_idx * VECTOR_LEN +
+                    (int64_t)n_base * ldc;
+
+                if (write_detail) {
+                    my_dbg[DBG_C_OFFSET] = (int32_t)c_offset;
+                }
+
+                copy_matrix_cc_to_gm(
+                    C + c_offset,
+                    L0C,
+                    0,
+                    VECTOR_LEN,
+                    (uint16_t)batch_n_actual,
+                    (uint32_t)ldc,
+                    VECTOR_LEN,
+                    0,
+                    0,
+                    0,
+                    false,
+                    true
+                );
+
+                set_flag(PIPE_FIX, PIPE_M, EVENT_ID0);
+                wait_flag(PIPE_FIX, PIPE_M, EVENT_ID0);
+
+                if (write_detail) {
+                    my_dbg[DBG_C_RAW_0] =
+                        (int32_t)(C[c_offset] * 1000.0f);
+                }
+
+                status |= ST_C_GM_OK;
+                if (debug_enabled) {
+                    my_dbg[DBG_STATUS] = status | err;
+                }
+
+                if (write_detail) {
+                    my_dbg[DBG_PHASE] = 8;
+                }
+
+                continue;
+            }
+
+            bool first_k_tile = true;
+
+            for (int32_t vec_base = 0;
+                 vec_base < num_vectors;
+                 vec_base += SPARSE_K_TILE) {
+
+                int32_t k_tile_actual = num_vectors - vec_base;
+                if (k_tile_actual > SPARSE_K_TILE) {
+                    k_tile_actual = SPARSE_K_TILE;
+                }
+
+                int32_t k_tile_fracs = ceil_div_16_i32(k_tile_actual);
+                int32_t k_tile_round = k_tile_fracs * 16;
+
+                if (k_tile_fracs <= 0 || k_tile_fracs > 255) {
+                    err |= ERR_K_FRACS_TOO_BIG;
+                    if (debug_enabled) {
+                        my_dbg[DBG_ERR] = err;
+                        my_dbg[DBG_STATUS] = status | err;
+                    }
+                    continue;
+                }
+
+                if (debug_enabled) {
+                    int32_t valid_cols = 0;
+                    int32_t is_contig = 0;
+                    int32_t is_near_contig = 0;
+                    int32_t max_abs_step = 0;
+                    int32_t sum_abs_step = 0;
+
+                    collect_b_tile_index_stats(
+                        row_cols,
+                        vec_base,
+                        k_tile_actual,
+                        K,
+                        valid_cols,
+                        is_contig,
+                        is_near_contig,
+                        max_abs_step,
+                        sum_abs_step);
+
+                    my_dbg[DBG_B_TILE_TOTAL] += batch_n_blocks;
+                    my_dbg[DBG_B_TILE_VALID] += valid_cols * batch_n_blocks;
+                    my_dbg[DBG_B_TILE_CONTIG] += is_contig * batch_n_blocks;
+                    my_dbg[DBG_B_TILE_NEAR] += is_near_contig * batch_n_blocks;
+                    my_dbg[DBG_B_TILE_SUM_STEP] += sum_abs_step * batch_n_blocks;
+                    if (max_abs_step > my_dbg[DBG_B_TILE_MAX_STEP]) {
+                        my_dbg[DBG_B_TILE_MAX_STEP] = max_abs_step;
+                    }
+                }
+
+                bool last_k_tile =
+                    (vec_base + SPARSE_K_TILE >= num_vectors);
+
+                if (write_detail) {
+                    my_dbg[DBG_L1_LOAD_REPEAT] = k_tile_fracs;
+                }
+
+                __gm__ __fp16 *A_tile_src =
+                    A_src + (int64_t)vec_base * VECTOR_LEN;
+
+                /*
+                 * B1: 只在存在 padding 时清空 B workspace。
+                 *
+                 * 满 K tile 且满 16 列时，下面的 gather 会写满
+                 * B_contig[j * k_tile_round + i] 的全部有效区域，
+                 * 无需每 tile 重复清零。最后 K tile 或最后 N block
+                 * 有 padding 时仍保守清零，避免旧数据进入对齐区域。
+                 */
+                int64_t row_pack_offset = b_pack_offsets[row_block];
+                int32_t pipe_slot = n_batch_idx % B_PACK_PIPE_DEPTH;
+                __gm__ __fp16 *B_contig =
+                    B_pack +
+                    row_pack_offset +
+                    (int64_t)pipe_slot * (int64_t)row_k_round * B_PACK_BATCH_COLS +
+                    (int64_t)vec_base * B_PACK_BATCH_COLS +
+                    (int64_t)local_n_block * BLOCK_SIZE;
+
+                if (write_detail && vec_base == 0) {
+                    if (num_vectors > 0) {
+                        my_dbg[DBG_FIRST_COL] = row_cols[0];
+                    }
+                    if (num_vectors > 1) {
+                        my_dbg[DBG_SECOND_COL] = row_cols[1];
+                    }
+                }
+
+                __fp16 first_b0 = B_contig[0];
+                __fp16 first_b1 = (batch_n_actual > 1)
+                    ? B_contig[1]
+                    : (__fp16)0.0f;
+
+                /*
+                 * B2/B3: n_actual 对整个 N block 恒定。
+                 *
+                 * 满 16 列是主路径，直接走展开版本，避免在每个 sparse
+                 * vector 内重复判断 n_actual == BLOCK_SIZE。尾块才进入
+                 * fallback，并保持 row-major B pack 语义。
+                 */
+                spmm_pipe_all_barrier();
+
+                if (write_detail && vec_base == 0) {
+                    my_dbg[DBG_B_RAW_0] = fp16_to_i1000(first_b0);
+                    my_dbg[DBG_B_RAW_1] = fp16_to_i1000(first_b1);
+                    my_dbg[DBG_BC_RAW_0] = fp16_to_i1000(first_b0);
+                    my_dbg[DBG_BC_RAW_1] = fp16_to_i1000(first_b1);
+                }
+
+                status |= ST_B_GATHER_OK;
+                if (debug_enabled) {
+                    my_dbg[DBG_STATUS] = status | err;
+                }
+
+                if (write_detail) {
+                    my_dbg[DBG_PHASE] = 4;
+                }
+
+                /*
+                 * Debug dump:
+                 *   DBG_BC_DUMP_START  : B workspace 实际内存顺序。
+                 *   DBG_L1A_DUMP_START : B_selected 逻辑 Kx16 行主序视图，便于人看。
+                 *   DBG_L1B_DUMP_START : A_selected 逻辑 Kx16 行主序视图。
+                 */
+                if (trace_block && !detail_dumped && vec_base == 0) {
+                    __gm__ __fp16 *dbg_b_mem =
+                        (__gm__ __fp16 *)(my_dbg + DBG_BC_DUMP_START);
+                    __gm__ __fp16 *dbg_b_logical =
+                        (__gm__ __fp16 *)(my_dbg + DBG_L1A_DUMP_START);
+                    __gm__ __fp16 *dbg_a_logical =
+                        (__gm__ __fp16 *)(my_dbg + DBG_L1B_DUMP_START);
+
+                    for (int t = 0; t < 128; ++t) {
+                        dbg_b_mem[t] = (__fp16)0.0f;
+                        dbg_b_logical[t] = (__fp16)0.0f;
+                        dbg_a_logical[t] = (__fp16)0.0f;
+                    }
+
+                    int32_t dump_mem_elems = k_tile_round * batch_n_actual;
+                    if (dump_mem_elems > 128) {
+                        dump_mem_elems = 128;
+                    }
+
+                    for (int32_t t = 0; t < dump_mem_elems; ++t) {
+                        dbg_b_mem[t] = B_contig[t];
+                    }
+
+                    int32_t dump_rows = k_tile_actual;
+                    if (dump_rows > 8) {
+                        dump_rows = 8;
+                    }
+                    if (dump_rows * BLOCK_SIZE > 128) {
+                        dump_rows = 128 / BLOCK_SIZE;
+                    }
+
+                    for (int32_t r = 0; r < dump_rows; ++r) {
+                        int32_t dump_col =
+                            row_cols[vec_base + r];
+
+                        if (dump_col >= 0 && dump_col < K) {
+                            __gm__ __fp16 *b_src =
+                                B + (int64_t)dump_col * (int64_t)N + n_base_i64;
+
+                            for (int32_t j = 0; j < BLOCK_SIZE; ++j) {
+                                __fp16 v =
+                                    (j < batch_n_actual) ? b_src[j] : (__fp16)0.0f;
+
+                                dbg_b_logical[r * BLOCK_SIZE + j] = v;
+                            }
+                        }
+                    }
+
+                    int32_t a_dump_elems = k_tile_actual * VECTOR_LEN;
+                    if (a_dump_elems > 128) {
+                        a_dump_elems = 128;
+                    }
+
+                    for (int32_t t = 0; t < a_dump_elems; ++t) {
+                        dbg_a_logical[t] = A_tile_src[t];
+                    }
+
+                    detail_dumped = true;
+                }
+
+                /*
+                 * L1_A: B_selected 左矩阵。
+                 *
+                 * B_contig 被组织为 row-major，每个 sparse vector 对应一行。
+                 * 这里通过 source_stride 将其送入 B_selected^T 左矩阵路径。
+                 * 不能直接把原始 B 的 row-major 地址传进此路径；若要跳过
+                 * B_contig，需要额外实现 DN2NZ 或 UB 重排。
+                 */
+                copy_b_pack_row_major_to_l1(
+                    L1_A,
+                    B_contig,
+                    B_PACK_BATCH_COLS,
+                    k_tile_round,
+                    k_tile_actual,
+                    batch_n_actual
+                );
+
+                /*
+                 * Early-ACK：当前 n-batch 的最后一个 B_pack GM->L1_A
+                 * 搬运已经入 MTE2 队列后，即可释放对应 workspace slot。
+                 *
+                 * 原版在 Fixpipe 写回 C 后才 ack，AIV 必须等 AIC 完整完成
+                 * 该 n-batch 后才能复用 slot。本版把 ack 前移到最后一次
+                 * 读取 B_pack 之后：ffts_cross_core_sync 绑定 PIPE_MTE2，
+                 * 保证它只会在前面的 B_pack GM->L1_A 搬运完成后对 AIV
+                 * 可见。之后 AIC 继续执行 A GM->L1_B、L1->L0、MAD、
+                 * Fixpipe；这些阶段不再访问 B_pack GM workspace，因此
+                 * AIV 可以并行覆盖该 slot 生产 t+2。
+                 */
+                if (last_k_tile && last_compute_in_pack) {
+                    ffts_cross_core_sync(
+                        PIPE_MTE2,
+                        GET_FFST_MSG(2, b_pack_ack_flag(n_batch_idx)));
+                }
+
+                /*
+                 * L1_B: A_selected 右矩阵。
+                 *
+                 * A_src 原始内存是 16 x K 的 column-major 块：
+                 *   每个 sparse vector 连续 16 个 half。
+                 *
+                 * 这里按 GEMM 中原始 A 转右矩阵 A^T 的路径：
+                 *   ND2nN + load_cbuf_to_cb(... transpose=true)
+                 */
+                ascblas_matrix_gm2cbuf_ND2nN(
+                    L1_B,
+                    A_tile_src,
+                    VECTOR_LEN,
+                    k_tile_round,
+                    VECTOR_LEN,
+                    k_tile_actual,
+                    VECTOR_LEN
+                );
+
+                set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+                wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+
+                status |= ST_A_L1_OK;
+                status |= ST_B_L1_OK;
+                if (debug_enabled) {
+                    my_dbg[DBG_STATUS] = status | err;
+                }
+
+                if (write_detail) {
+                    my_dbg[DBG_PHASE] = 5;
+                }
+
+                /*
+                 * L1 -> L0A:
+                 *   B_selected^T[n_actual x k_tile_actual]
+                 */
+                for (int32_t batch_n_frac = 0;
+                     batch_n_frac < batch_n_fracs;
+                     ++batch_n_frac) {
+                    load_cbuf_to_ca(
+                        L0A + CUBE_MATRIX_SIZE * k_tile_fracs * batch_n_frac,
+                        L1_A,
+                        (uint16_t)(batch_n_frac * k_tile_fracs),
+                        (uint8_t)k_tile_fracs,
+                        1,
+                        0,
+                        0,
+                        true,
+                        inc
+                    );
+                }
+
+                /*
+                 * L1 -> L0B:
+                 *   A_selected^T[k_tile_actual x 16]
+                 *
+                 * 关键调整：
+                 *   transpose = true
+                 */
+                load_cbuf_to_cb(
+                    L0B,
+                    L1_B,
+                    0,
+                    (uint8_t)k_tile_fracs,
+                    1,
+                    0,
+                    0,
+                    true,
+                    inc
+                );
+
+                set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+                wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+
+                status |= ST_L0_OK;
+                if (debug_enabled) {
+                    my_dbg[DBG_STATUS] = status | err;
+                }
+
+                if (write_detail) {
+                    my_dbg[DBG_PHASE] = 6;
+                }
+
+                mad(
+                    L0C,
+                    L0A,
+                    L0B,
+                    (uint16_t)batch_n_actual,
+                    (uint16_t)k_tile_actual,
+                    (uint16_t)VECTOR_LEN,
+                    0,
+                    1,
+                    0,
+                    false,
+                    false,
+                    false,
+                    first_k_tile
+                );
+
+                if (!last_k_tile) {
+                    set_flag(PIPE_M, PIPE_MTE1, EVENT_ID0);
+                    wait_flag(PIPE_M, PIPE_MTE1, EVENT_ID0);
+                } else {
+                    set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+                    wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+                }
+
+                status |= ST_MAD_OK;
+                if (debug_enabled) {
+                    my_dbg[DBG_STATUS] = status | err;
+                }
+
+                if (write_detail) {
+                    my_dbg[DBG_PHASE] = 7;
+                }
+
+                first_k_tile = false;
+            }
+
+            /*
+             * 写回 C。
+             *
+             * 当前仍保持 column-major 目标：
+             *   C + row_base + col_base * ldc
+             *
+             * 如果本版 h_C[0] 修正、但 h_C[1]/h_C[M] 和 reference 的对应关系不对，
+             * 下一步只改这里的 Fixpipe 参数和 c_offset。
+             */
+            int64_t c_offset =
+                m_block_idx * VECTOR_LEN +
+                (int64_t)n_base * ldc;
+
+            if (write_detail) {
+                my_dbg[DBG_C_OFFSET] = (int32_t)c_offset;
+            }
+
+            copy_matrix_cc_to_gm(
+                C + c_offset,
+                L0C,
+                0,
+                VECTOR_LEN,
+                (uint16_t)batch_n_actual,
+                (uint32_t)ldc,
+                VECTOR_LEN,
+                0,
+                0,
+                0,
+                false,
+                true
+            );
+
+            set_flag(PIPE_FIX, PIPE_M, EVENT_ID0);
+            wait_flag(PIPE_FIX, PIPE_M, EVENT_ID0);
+
+            if (write_detail) {
+                my_dbg[DBG_C_RAW_0] =
+                    (int32_t)(C[c_offset] * 1000.0f);
+            }
+
+            status |= ST_C_GM_OK;
+            if (debug_enabled) {
+                my_dbg[DBG_STATUS] = status | err;
+            }
+
+            if (write_detail) {
+                my_dbg[DBG_PHASE] = 8;
+            }
+
+            /*
+             * ack 已在最后一个 B_pack GM->L1_A 完成点提前发出，
+             * 这里不再发 ack，避免同一个 n_batch 产生两次 ack。
+             */
+        }
+    }
+
+    spmm_pipe_all_barrier();
+    if (debug_enabled) {
+        my_dbg[DBG_STATUS] = status | err | ST_DONE;
+    }
+}
+#endif
+
+#if __DAV_C220_VEC__
+__aicore__ __inline__ void pack_b_selected_panels_nbatch_row_major_aiv(
+    int N,
+    int32_t n_base,
+    int32_t n_actual,
+    int32_t vec_base,
+    __gm__ int *row_cols,
+    __gm__ __fp16 *B,
+    __gm__ __fp16 *B_pack_batch_dst,
+    __ubuf__ __fp16 *panel_ub)
+{
+    /*
+     * Fast path for both full and partial B-pack super-batches.
+     *
+     * Previous code used the 16-row grouped pack only when n_actual == 1024.
+     * For a partial super-batch such as N=4000, the last pack contains
+     * 928 columns and used to be split into 58 independent 16-column packs.
+     * That created a large AIV MTE2/MTE3 synchronization overhead.
+     *
+     * Here each selected B row is still stored in a fixed 1024-column stride
+     * workspace row, but only n_actual valid columns are moved. AIC already
+     * consumes the workspace with source_stride=B_PACK_BATCH_COLS, so no AIC
+     * layout change is needed.
+     */
+    set_flag(PIPE_V, PIPE_MTE2, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE2, EVENT_ID0);
+
+    for (int32_t inner = 0; inner < B_PACK_SUB_TILE; ++inner) {
+        int32_t col = row_cols[vec_base + inner];
+        __gm__ __fp16 *row_src =
+            B + (int64_t)col * (int64_t)N + n_base;
+
+        copy_gm_to_ubuf_align_b16(
+            panel_ub + (int64_t)inner * B_PACK_BATCH_COLS,
+            row_src,
+            0,
+            1,
+            n_actual * (int32_t)sizeof(__fp16),
+            0,
+            0,
+            0,
+            0
+        );
+    }
+
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+
+    ascblas_matrix_ubuf2gm(
+        B_pack_batch_dst + (int64_t)vec_base * B_PACK_BATCH_COLS,
+        panel_ub,
+        n_actual,
+        B_PACK_SUB_TILE,
+        B_PACK_BATCH_COLS,
+        B_PACK_BATCH_COLS
+    );
+
+    set_flag(PIPE_MTE3, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE3, PIPE_V, EVENT_ID0);
+}
+
+__aicore__ __inline__ void pack_b_selected_panels_row_major_direct_aiv(
+    int N,
+    int K,
+    int32_t n_base,
+    int32_t n_actual,
+    int32_t vec_base,
+    int32_t num_vectors,
+    __gm__ int *row_cols,
+    __gm__ __fp16 *B,
+    __gm__ __fp16 *B_pack_dst,
+    __ubuf__ __fp16 *panel_ub)
+{
+    set_flag(PIPE_V, PIPE_MTE2, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE2, EVENT_ID0);
+
+    for (int32_t inner = 0; inner < B_PACK_SUB_TILE; ++inner) {
+        int32_t sparse_idx = vec_base + inner;
+        if (sparse_idx >= num_vectors) {
+            continue;
+        }
+
+        int32_t col = row_cols[sparse_idx];
+        if (col < 0 || col >= K) {
+            continue;
+        }
+
+        __gm__ __fp16 *row_src =
+            B + (int64_t)col * (int64_t)N + n_base;
+
+        copy_gm_to_ubuf_align_b16(
+            panel_ub + (int64_t)inner * B_PACK_BATCH_COLS,
+            row_src,
+            0,
+            1,
+            n_actual * (int32_t)sizeof(__fp16),
+            0,
+            0,
+            0,
+            0
+        );
+    }
+
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+
+    for (int32_t inner = 0; inner < B_PACK_SUB_TILE; ++inner) {
+        int32_t sparse_idx = vec_base + inner;
+        if (sparse_idx >= num_vectors) {
+            continue;
+        }
+
+        int32_t col = row_cols[sparse_idx];
+        if (col < 0 || col >= K) {
+            continue;
+        }
+
+        copy_ubuf_to_gm_align_b16(
+            B_pack_dst + (int64_t)inner * B_PACK_BATCH_COLS,
+            panel_ub + (int64_t)inner * B_PACK_BATCH_COLS,
+            0,
+            1,
+            n_actual * (int32_t)sizeof(__fp16),
+            0,
+            0,
+            0,
+            0
+        );
+    }
+
+    set_flag(PIPE_MTE3, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE3, PIPE_V, EVENT_ID0);
+}
+
+extern "C" __global__ __aicore__ void SPMM_AIV_SYMBOL(SPMM_KERNEL_NAME)(
+    int M,
+    int N,
+    int K,
+    int vec_length,
+    __gm__ __fp16 *values,
+    __gm__ int *col_indices,
+    __gm__ int *row_offsets,
+    __gm__ __fp16 *B,
+    __gm__ float *C,
+    __gm__ void *ffts_addr,
+    __gm__ __fp16 *workspace1,
+    __gm__ int64_t *b_pack_offsets,
+    int64_t total_b_pack_elems,
+    int64_t max_vectors_per_row,
+    int64_t num_n_blocks,
+    int64_t ldc,
+    __gm__ int32_t *debug_out,
+    int32_t debug_enable
+)
+{
+    (void)values;
+    (void)C;
+    (void)max_vectors_per_row;
+    (void)ldc;
+    (void)debug_out;
+    (void)debug_enable;
+
+    set_ffts_base_addr((uint64_t)ffts_addr);
+    set_vector_mask(-1, -1);
+    set_mask_norm();
+
+    __ubuf__ __fp16 *panel_ub = (__ubuf__ __fp16 *)(uintptr_t)0;
+
+    int32_t core_id = get_block_idx();
+    int32_t core_cnt = get_block_num();
+    int32_t num_row_blocks =
+        (int32_t)(((int64_t)M + vec_length - 1) / vec_length);
+    int32_t num_n_blocks_i32 = (int32_t)num_n_blocks;
+    int32_t num_n_batches_i32 =
+        (num_n_blocks_i32 + B_PACK_N_BATCH - 1) / B_PACK_N_BATCH;
+
+    if (total_b_pack_elems > 0) {
+        for (int32_t row_block = core_id;
+             row_block < num_row_blocks;
+             row_block += core_cnt) {
+
+            int32_t start_vec = row_offsets[row_block];
+            int32_t end_vec = row_offsets[row_block + 1];
+            int32_t num_vectors = end_vec - start_vec;
+
+            if (start_vec < 0 || end_vec < start_vec || num_vectors <= 0) {
+                continue;
+            }
+
+            int32_t row_k_round = ceil_div_16_i32(num_vectors) * 16;
+            int64_t row_pack_offset = b_pack_offsets[row_block];
+            __gm__ int *row_cols = col_indices + start_vec;
+
+            for (int32_t n_batch_idx = 0;
+                 n_batch_idx < num_n_batches_i32;
+                 ++n_batch_idx) {
+
+                if (n_batch_idx >= B_PACK_PIPE_DEPTH) {
+                    wait_flag_dev(b_pack_ack_flag(n_batch_idx - B_PACK_PIPE_DEPTH));
+                }
+
+#if SPMM_PROFILE_AIC_ONLY
+                ffts_cross_core_sync(
+                    PIPE_MTE3,
+                    GET_FFST_MSG(2, b_pack_ready_flag(n_batch_idx)));
+                continue;
+#endif
+
+                int32_t n_block_begin = n_batch_idx * B_PACK_N_BATCH;
+                int32_t n_base = n_block_begin * BLOCK_SIZE;
+
+                int32_t n_batch_actual = N - n_base;
+                if (n_batch_actual > B_PACK_BATCH_COLS) {
+                    n_batch_actual = B_PACK_BATCH_COLS;
+                }
+                if (n_batch_actual <= 0) {
+                    ffts_cross_core_sync(
+                        PIPE_MTE3,
+                        GET_FFST_MSG(2, b_pack_ready_flag(n_batch_idx)));
+                    continue;
+                }
+
+                int32_t pipe_slot = n_batch_idx % B_PACK_PIPE_DEPTH;
+                __gm__ __fp16 *B_pack_batch_dst =
+                    workspace1 +
+                    row_pack_offset +
+                    (int64_t)pipe_slot * (int64_t)row_k_round * B_PACK_BATCH_COLS;
+
+                bool fast_grouped_store =
+                    (B_PACK_ASSUME_VALID_COLS != 0) &&
+                    ((n_batch_actual % BLOCK_SIZE) == 0);
+
+                for (int32_t vec_base = 0;
+                     vec_base < num_vectors;
+                     vec_base += B_PACK_SUB_TILE) {
+
+                    bool full_sparse_tile =
+                        fast_grouped_store &&
+                        (vec_base + B_PACK_SUB_TILE <= num_vectors);
+
+                    if (full_sparse_tile) {
+                        pack_b_selected_panels_nbatch_row_major_aiv(
+                            N,
+                            n_base,
+                            n_batch_actual,
+                            vec_base,
+                            row_cols,
+                            B,
+                            B_pack_batch_dst,
+                            panel_ub
+                        );
+                    } else {
+                        pack_b_selected_panels_row_major_direct_aiv(
+                            N,
+                            K,
+                            n_base,
+                            n_batch_actual,
+                            vec_base,
+                            num_vectors,
+                            row_cols,
+                            B,
+                            B_pack_batch_dst +
+                                (int64_t)vec_base * B_PACK_BATCH_COLS,
+                            panel_ub
+                        );
+                    }
+                }
+
+                ffts_cross_core_sync(
+                    PIPE_MTE3,
+                    GET_FFST_MSG(2, b_pack_ready_flag(n_batch_idx)));
+            }
+
+            int32_t drain_begin = num_n_batches_i32 - B_PACK_PIPE_DEPTH;
+            if (drain_begin < 0) {
+                drain_begin = 0;
+            }
+            for (int32_t n_batch_idx = drain_begin;
+                 n_batch_idx < num_n_batches_i32;
+                 ++n_batch_idx) {
+                wait_flag_dev(b_pack_ack_flag(n_batch_idx));
+            }
+        }
+    }
+
+    spmm_pipe_all_barrier();
+}
+#endif
+
